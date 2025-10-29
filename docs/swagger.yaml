@@ -350,7 +350,7 @@ definitions:
       updatedAt:
         type: string
     type: object
-host: 192.168.1.104:8080
+host: 147.185.221.212:61489
 info:
   contact:
     email: suporte@exemplo.com

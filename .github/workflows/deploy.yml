@@ -27,10 +27,6 @@ jobs:
             # 3. Baixe dependências
             go mod tidy
 
-            # 4. Atualize o Swagger
-            echo "Atualizando o Swagger..."
-            swag init
-
             # 5. Compile o novo binário
             echo "Compilando a aplicação Go..."
             go build -o api-go-ia main.go
