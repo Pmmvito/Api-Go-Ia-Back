@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"github.com/Pmmvito/Golang-Api-Exemple/config"
 	"github.com/Pmmvito/Golang-Api-Exemple/router"
 	"github.com/joho/godotenv"
@@ -76,6 +78,15 @@ func main() {
 	if err != nil {
 		logger.ErrorF("config initialization erro: %v", err)
 		return
+	}
+
+	// Define o timezone do projeto para America/Sao_Paulo
+	loc, err := time.LoadLocation("America/Sao_Paulo")
+	if err != nil {
+		logger.WarnF("Não foi possível carregar a timezone America/Sao_Paulo: %v", err)
+	} else {
+		time.Local = loc
+		logger.InfoF("Timezone definida para %s", loc)
 	}
 
 	router.Initialize()
