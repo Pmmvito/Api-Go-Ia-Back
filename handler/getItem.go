@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/Pmmvito/Golang-Api-Exemple/schemas"
 	"github.com/gin-gonic/gin"
@@ -73,15 +74,42 @@ func GetItemsByDateHandler(ctx *gin.Context) {
 // @Success 200 {object} schemas.ReceiptItemResponse
 // @Failure 404 {object} map[string]string
 // @Router /item/{id}/date/{date} [get]
-func GetItemByIDAndDateHandler(ctx *gin.Context) {
-	id := ctx.Param("id")
-	date := ctx.Param("date")
-	var item schemas.ReceiptItem
-	// usa variável global db
-	db.Joins("JOIN receipts ON receipts.id = receipt_items.receipt_id").Where("receipt_items.id = ? AND receipts.date = ?", id, date).First(&item)
-	if item.ID == 0 {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Item não encontrado"})
+
+// GetItemsByPeriodHandler busca itens por período de recibos do usuário autenticado
+// @Summary Listar itens por período
+// @Description Lista itens de recibos do usuário autenticado entre query params `start` e `end` (RFC3339 ou YYYY-MM-DD). Ambos obrigatórios.
+// @Tags items
+// @Produce json
+// @Security BearerAuth
+// @Param start query string true "Data/hora inicial (RFC3339 ou YYYY-MM-DD)"
+// @Param end query string true "Data/hora final (RFC3339 ou YYYY-MM-DD)"
+// @Success 200 {array} schemas.ReceiptItemResponse
+// @Router /items/period [get]
+func GetItemsByPeriodHandler(ctx *gin.Context) {
+	userID, _ := ctx.Get("user_id")
+	startStr := ctx.Query("start")
+	endStr := ctx.Query("end")
+
+	if startStr == "" || endStr == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Query params 'start' e 'end' são obrigatórios"})
 		return
 	}
-	ctx.JSON(http.StatusOK, item)
+
+	// Tenta parsear como RFC3339, se falhar tenta YYYY-MM-DD
+	start, err1 := time.Parse(time.RFC3339, startStr)
+	end, err2 := time.Parse(time.RFC3339, endStr)
+	if err1 != nil || err2 != nil {
+		s, errS := time.ParseInLocation("2006-01-02", startStr, time.Local)
+		e, errE := time.ParseInLocation("2006-01-02", endStr, time.Local)
+		if errS != nil || errE != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Formato de data inválido. Use RFC3339 ou YYYY-MM-DD"})
+			return
+		}
+		start = s
+		end = e.Add(24 * time.Hour)
+	}
+
+	var items []schemas.ReceiptItem
+	db.Joins("JOIN receipts ON receipts.id = receipt_items.receipt_id").Where("receipts.user_id = ? AND receipts.date >= ? AND receipts.date < ?", userID, start, end).Find(&items)
+	ctx.JSON(http.StatusOK, items)
 }

@@ -582,38 +582,6 @@ paths:
       summary: Buscar item por ID
       tags:
       - items
-  /item/{id}/date/{date}:
-    get:
-      description: Busca item por ID e data de recibo
-      parameters:
-      - description: ID do item
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Data (YYYY-MM-DD)
-        in: path
-        name: date
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/schemas.ReceiptItemResponse'
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Buscar item por ID e data de recibo
-      tags:
-      - items
   /items:
     get:
       description: Lista todos os itens de recibos do usuário autenticado
@@ -652,6 +620,35 @@ paths:
       security:
       - BearerAuth: []
       summary: Listar itens por data de recibo
+      tags:
+      - items
+  /items/period:
+    get:
+      description: Lista itens de recibos do usuário autenticado entre query params
+        `start` e `end` (RFC3339 ou YYYY-MM-DD). Ambos obrigatórios.
+      parameters:
+      - description: Data/hora inicial (RFC3339 ou YYYY-MM-DD)
+        in: query
+        name: start
+        required: true
+        type: string
+      - description: Data/hora final (RFC3339 ou YYYY-MM-DD)
+        in: query
+        name: end
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/schemas.ReceiptItemResponse'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Listar itens por período
       tags:
       - items
   /login:
@@ -707,7 +704,24 @@ paths:
       summary: Get current user profile
       tags:
       - "\U0001F510 Authentication"
-  /product/{id}:
+  /products:
+    get:
+      description: Lista todos os produtos cadastrados
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/schemas.ProductResponse'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Listar todos os produtos
+      tags:
+      - products
+  /products/{id}:
     get:
       description: Busca produto pelo ID
       parameters:
@@ -734,62 +748,13 @@ paths:
       summary: Buscar produto por ID
       tags:
       - products
-  /product/{id}/name/{name}:
+  /products/date/{date}:
     get:
-      description: Busca produto por ID e nome
+      description: Retorna todos os produtos criados em uma data específica (YYYY-MM-DD)
       parameters:
-      - description: ID do produto
+      - description: Data no formato YYYY-MM-DD
         in: path
-        name: id
-        required: true
-        type: integer
-      - description: Nome do produto
-        in: path
-        name: name
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/schemas.ProductResponse'
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Buscar produto por ID e nome
-      tags:
-      - products
-  /products:
-    get:
-      description: Lista todos os produtos cadastrados
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/schemas.ProductResponse'
-            type: array
-      security:
-      - BearerAuth: []
-      summary: Listar todos os produtos
-      tags:
-      - products
-  /products/name/{name}:
-    get:
-      description: Busca produtos pelo nome (parcial)
-      parameters:
-      - description: Nome do produto (parcial)
-        in: path
-        name: name
+        name: date
         required: true
         type: string
       produces:
@@ -803,7 +768,36 @@ paths:
             type: array
       security:
       - BearerAuth: []
-      summary: Buscar produtos por nome
+      summary: Buscar produtos por data
+      tags:
+      - products
+  /products/period:
+    get:
+      description: Retorna todos os produtos criados entre as query params `start`
+        e `end` (RFC3339 ou YYYY-MM-DD). Ambos são obrigatórios.
+      parameters:
+      - description: Data/hora inicial (RFC3339 ou YYYY-MM-DD)
+        in: query
+        name: start
+        required: true
+        type: string
+      - description: Data/hora final (RFC3339 ou YYYY-MM-DD)
+        in: query
+        name: end
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/schemas.ProductResponse'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Buscar produtos por período
       tags:
       - products
   /receipt/{id}:

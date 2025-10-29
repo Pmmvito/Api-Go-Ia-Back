@@ -38,8 +38,10 @@ func InitializeRoutes(router *gin.Engine) {
 		// Rotas de produtos
 		protected.GET("/products", handler.GetProductsHandler)
 		protected.GET("/products/:id", handler.GetProductByIDHandler)
-		protected.GET("/products/name/:name", handler.GetProductsByNameHandler)
-		protected.GET("/products/:id/name/:name", handler.GetProductByIDAndNameHandler)
+		// Buscar todos os produtos de uma data específica (YYYY-MM-DD)
+		protected.GET("/products/date/:date", handler.GetProductsByDateHandler)
+		// Buscar todos os produtos dentro de um período (query params: start, end)
+		protected.GET("/products/period", handler.GetProductsByPeriodHandler)
 
 		// Rotas de recibos
 		protected.GET("/receipts", handler.GetReceiptsHandler)
@@ -56,7 +58,8 @@ func InitializeRoutes(router *gin.Engine) {
 		protected.GET("/items", handler.GetItemsHandler)
 		protected.GET("/items/date/:date", handler.GetItemsByDateHandler)
 		protected.GET("/item/:id", handler.GetItemByIDHandler)
-		protected.GET("/item/:id/date/:date", handler.GetItemByIDAndDateHandler)
+		// Buscar itens por período (query params: start, end)
+		protected.GET("/items/period", handler.GetItemsByPeriodHandler)
 
 		// 🆕 QR Code Flow (2 etapas)
 		protected.POST("/scan-qrcode/preview", handler.ScanQRCodePreviewHandler) // Etapa 1: Preview (não salva)

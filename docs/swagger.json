@@ -324,56 +324,6 @@
                 }
             }
         },
-        "/item/{id}/date/{date}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Busca item por ID e data de recibo",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "items"
-                ],
-                "summary": "Buscar item por ID e data de recibo",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID do item",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Data (YYYY-MM-DD)",
-                        "name": "date",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/schemas.ReceiptItemResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/items": {
             "get": {
                 "security": [
@@ -423,6 +373,50 @@
                         "description": "Data (YYYY-MM-DD)",
                         "name": "date",
                         "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/schemas.ReceiptItemResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/items/period": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Lista itens de recibos do usuário autenticado entre query params `start` e `end` (RFC3339 ou YYYY-MM-DD). Ambos obrigatórios.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "items"
+                ],
+                "summary": "Listar itens por período",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Data/hora inicial (RFC3339 ou YYYY-MM-DD)",
+                        "name": "start",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Data/hora final (RFC3339 ou YYYY-MM-DD)",
+                        "name": "end",
+                        "in": "query",
                         "required": true
                     }
                 ],
@@ -519,7 +513,116 @@
                 }
             }
         },
-        "/product/{id}": {
+        "/products": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Lista todos os produtos cadastrados",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "products"
+                ],
+                "summary": "Listar todos os produtos",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/schemas.ProductResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/products/date/{date}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retorna todos os produtos criados em uma data específica (YYYY-MM-DD)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "products"
+                ],
+                "summary": "Buscar produtos por data",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Data no formato YYYY-MM-DD",
+                        "name": "date",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/schemas.ProductResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/products/period": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Retorna todos os produtos criados entre as query params `start` e `end` (RFC3339 ou YYYY-MM-DD). Ambos são obrigatórios.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "products"
+                ],
+                "summary": "Buscar produtos por período",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Data/hora inicial (RFC3339 ou YYYY-MM-DD)",
+                        "name": "start",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Data/hora final (RFC3339 ou YYYY-MM-DD)",
+                        "name": "end",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/schemas.ProductResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/products/{id}": {
             "get": {
                 "security": [
                     {
@@ -556,121 +659,6 @@
                             "type": "object",
                             "additionalProperties": {
                                 "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/product/{id}/name/{name}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Busca produto por ID e nome",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "products"
-                ],
-                "summary": "Buscar produto por ID e nome",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "ID do produto",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Nome do produto",
-                        "name": "name",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/schemas.ProductResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/products": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Lista todos os produtos cadastrados",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "products"
-                ],
-                "summary": "Listar todos os produtos",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/schemas.ProductResponse"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/products/name/{name}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Busca produtos pelo nome (parcial)",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "products"
-                ],
-                "summary": "Buscar produtos por nome",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Nome do produto (parcial)",
-                        "name": "name",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/schemas.ProductResponse"
                             }
                         }
                     }
