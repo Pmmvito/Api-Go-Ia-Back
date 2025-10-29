@@ -53,7 +53,7 @@ var (
 // @license.name MIT
 // @license.url https://opensource.org/licenses/MIT
 
-// @host localhost:8080
+// @host 192.168.1.104:8080
 // @BasePath /api/v1
 
 // @securityDefinitions.apikey BearerAuth
