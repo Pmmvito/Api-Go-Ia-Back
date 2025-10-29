@@ -1,0 +1,1077 @@
+basePath: /api/v1
+definitions:
+  handler.AuthResponse:
+    properties:
+      message:
+        type: string
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/schemas.UserResponse'
+    type: object
+  handler.CreateCategoryRequest:
+    properties:
+      color:
+        example: '#3498db'
+        type: string
+      description:
+        example: Gastos com viagens e turismo
+        type: string
+      icon:
+        example: ✈️
+        type: string
+      name:
+        example: Viagens
+        type: string
+    required:
+    - name
+    type: object
+  handler.ErrorResponse:
+    properties:
+      errorCode:
+        type: string
+      message:
+        type: string
+    type: object
+  handler.LoginRequest:
+    properties:
+      email:
+        example: joao@example.com
+        type: string
+      password:
+        example: senha123
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  handler.PreviewItem:
+    properties:
+      deleted:
+        description: Se true, item será ignorado (usado no confirm)
+        type: boolean
+      description:
+        description: Nome do produto
+        type: string
+      quantity:
+        description: Quantidade
+        type: number
+      tempId:
+        description: ID temporário para edição
+        type: integer
+      total:
+        description: Total do item
+        type: number
+      unit:
+        description: Unidade (kg, un, ml, etc)
+        type: string
+      unitPrice:
+        description: Preço unitário
+        type: number
+    type: object
+  handler.PreviewReceiptData:
+    properties:
+      accessKey:
+        description: Chave de acesso da NFC-e
+        type: string
+      date:
+        description: Data da compra
+        type: string
+      discount:
+        description: Desconto
+        type: number
+      items:
+        description: Items extraídos
+        items:
+          $ref: '#/definitions/handler.PreviewItem'
+        type: array
+      itemsCount:
+        description: Total de items
+        type: integer
+      number:
+        description: Número da nota
+        type: string
+      qrCodeUrl:
+        description: URL original (para confirmação)
+        type: string
+      storeName:
+        description: Nome do estabelecimento
+        type: string
+      subtotal:
+        description: Subtotal
+        type: number
+      total:
+        description: Total
+        type: number
+    type: object
+  handler.RegisterRequest:
+    properties:
+      email:
+        example: joao@example.com
+        type: string
+      name:
+        example: João Silva
+        minLength: 2
+        type: string
+      password:
+        example: senha123
+        minLength: 6
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  handler.ScanQRCodeConfirmRequest:
+    properties:
+      accessKey:
+        description: Chave de acesso
+        type: string
+      date:
+        description: Data da compra (opcional, usa data atual se vazio)
+        type: string
+      discount:
+        description: Desconto
+        type: number
+      items:
+        description: Items (editados) - USA PreviewItem
+        items:
+          $ref: '#/definitions/handler.PreviewItem'
+        type: array
+      itemsCount:
+        description: Total de items
+        type: integer
+      number:
+        description: Número da nota
+        type: string
+      qrCodeUrl:
+        description: URL original
+        type: string
+      storeName:
+        description: Nome do estabelecimento
+        type: string
+      subtotal:
+        description: Subtotal
+        type: number
+      total:
+        description: Total (opcional, calcula se zero)
+        type: number
+    required:
+    - items
+    - qrCodeUrl
+    - storeName
+    type: object
+  handler.ScanQRCodeConfirmResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  handler.ScanQRCodePreviewRequest:
+    properties:
+      qrCodeUrl:
+        description: URL do QR Code da NFC-e
+        type: string
+    required:
+    - qrCodeUrl
+    type: object
+  handler.ScanQRCodePreviewResponse:
+    properties:
+      data:
+        $ref: '#/definitions/handler.PreviewReceiptData'
+      message:
+        type: string
+    type: object
+  handler.UpdateCategoryRequest:
+    properties:
+      color:
+        example: '#e74c3c'
+        type: string
+      description:
+        example: Restaurantes e delivery
+        type: string
+      icon:
+        example: "\U0001F355"
+        type: string
+      name:
+        example: Alimentação Fora
+        type: string
+    type: object
+  schemas.CategorySimple:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  schemas.ProductResponse:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      unity:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  schemas.ProductSimple:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+      unity:
+        type: string
+    type: object
+  schemas.ReceiptBasic:
+    properties:
+      currency:
+        type: string
+      date:
+        type: string
+      id:
+        type: integer
+      itemCount:
+        description: Quantidade de itens
+        type: integer
+      storeName:
+        type: string
+      total:
+        type: number
+    type: object
+  schemas.ReceiptItemResponse:
+    properties:
+      category:
+        allOf:
+        - $ref: '#/definitions/schemas.CategorySimple'
+        description: Apenas ID e Nome
+      categoryId:
+        type: integer
+      createdAt:
+        type: string
+      id:
+        type: integer
+      productId:
+        type: integer
+      quantity:
+        type: number
+      receiptId:
+        type: integer
+      total:
+        type: number
+      unitPrice:
+        type: number
+      updatedAt:
+        type: string
+    type: object
+  schemas.ReceiptItemSummary:
+    properties:
+      category:
+        allOf:
+        - $ref: '#/definitions/schemas.CategorySimple'
+        description: Apenas ID e Nome
+      categoryId:
+        type: integer
+      id:
+        type: integer
+      product:
+        allOf:
+        - $ref: '#/definitions/schemas.ProductSimple'
+        description: Nome e unidade do produto
+      productId:
+        type: integer
+      quantity:
+        type: number
+      total:
+        type: number
+      unitPrice:
+        type: number
+    type: object
+  schemas.ReceiptResponse:
+    properties:
+      confidence:
+        type: number
+      createdAt:
+        type: string
+      currency:
+        type: string
+      date:
+        type: string
+      discount:
+        type: number
+      id:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/schemas.ReceiptItemResponse'
+        type: array
+      notes:
+        type: string
+      storeName:
+        type: string
+      subtotal:
+        type: number
+      total:
+        type: number
+      updatedAt:
+        type: string
+      userId:
+        type: integer
+    type: object
+  schemas.ReceiptSummary:
+    properties:
+      currency:
+        type: string
+      date:
+        type: string
+      id:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/schemas.ReceiptItemSummary'
+        type: array
+      storeName:
+        type: string
+      total:
+        type: number
+    type: object
+  schemas.UserResponse:
+    properties:
+      createdAt:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: suporte@exemplo.com
+    name: Equipe de Desenvolvimento
+    url: https://github.com/Pmmvito/Golang-Api-Exemple
+  description: "API REST para autenticação JWT, análise inteligente de notas fiscais
+    de supermercado e gestão de categorias\n\n## \U0001F680 Funcionalidades Principais:\n-
+    \U0001F510 **Autenticação JWT** com tokens de 7 dias\n- \U0001F916 **Análise de
+    Notas com IA** usando Google Gemini (2-3s)\n- \U0001F4CA **Categorização Automática**
+    de produtos de supermercado\n- \U0001F4DD **CRUD Completo** de recibos e categorias\n-
+    \U0001F50D **Filtros Avançados** por categoria, data e valor\n- ⚡ **Respostas
+    Otimizadas** (55% menores)\n\n## \U0001F4D6 Como Usar:\n1. Registre-se em `/register`\n2.
+    Faça login em `/login` para obter o token JWT\n3. Clique em **Authorize** \U0001F513
+    (cadeado verde) e cole: `Bearer SEU_TOKEN`\n4. Agora você pode testar todos os
+    endpoints protegidos!\n\n## \U0001F6D2 Categorias de Supermercado (45+ categorias):\n**Alimentos
+    Básicos:** Grãos e Cereais, Massas, Farinhas\n**Proteínas:** Carnes Vermelhas,
+    Aves, Peixes, Frios e Embutidos\n**Laticínios:** Leite, Queijos, Iogurtes, Manteiga\n**Hortifruti:**
+    Frutas, Verduras, Legumes\n**Padaria:** Pães, Bolos e Tortas, Biscoitos\n**Bebidas:**
+    Refrigerantes, Sucos, Água, Bebidas Alcoólicas, Cafés e Chás\n**Congelados:**
+    Congelados, Sorvetes\n**Despensa:** Óleos, Temperos, Molhos, Enlatados\n**Doces:**
+    Chocolates, Doces e Balas, Sobremesas\n**Snacks:** Salgadinhos, Lanches Rápidos\n**Higiene:**
+    Higiene Bucal, Corporal, Papel Higiênico, Fraldas\n**Limpeza:** Limpeza Geral,
+    Limpeza de Roupas, Descartáveis\n**Outros:** Pet Shop, Alimentação Infantil, Utilidades
+    Domésticas\n\nUse `/categories` para ver todas as categorias com IDs!"
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: API de Gestão de Notas Fiscais com IA
+  version: "2.0"
+paths:
+  /categories:
+    get:
+      consumes:
+      - application/json
+      description: 'Get all expense categories sorted by name. Returns: 1-Alimentação,
+        2-Transporte, 3-Saúde, 4-Lazer, 5-Educação, 6-Moradia, 7-Vestuário, 8-Outros'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of categories with count
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized - Invalid or missing token
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List all categories
+      tags:
+      - "\U0001F4C1 Categories"
+  /category:
+    post:
+      consumes:
+      - application/json
+      description: Create a new expense category for organizing receipt items
+      parameters:
+      - description: Category data (name is required, description/icon/color are optional)
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Category created successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized - Invalid or missing token
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create new category
+      tags:
+      - "\U0001F4C1 Categories"
+  /category/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 'Delete a category permanently. WARNING: This will also remove
+        the category association from all receipt items (sets categoryId to null).'
+      parameters:
+      - description: Category ID
+        example: 1
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete category
+      tags:
+      - "\U0001F4C1 Categories"
+    get:
+      consumes:
+      - application/json
+      description: Get details of a specific category by ID
+      parameters:
+      - description: Category ID
+        example: 1
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Category details
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized - Invalid or missing token
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Category not found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get category details
+      tags:
+      - "\U0001F4C1 Categories"
+    patch:
+      consumes:
+      - application/json
+      description: Update category information (name, description, icon, color). All
+        fields are optional - only send what you want to update.
+      parameters:
+      - description: Category ID
+        example: 1
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Category data to update (all fields optional)
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Category updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request or no fields to update
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized - Invalid or missing token
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Category not found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update category
+      tags:
+      - "\U0001F4C1 Categories"
+  /item/{id}:
+    get:
+      description: Busca um item pelo ID
+      parameters:
+      - description: ID do item
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/schemas.ReceiptItemResponse'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Buscar item por ID
+      tags:
+      - items
+  /item/{id}/date/{date}:
+    get:
+      description: Busca item por ID e data de recibo
+      parameters:
+      - description: ID do item
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Data (YYYY-MM-DD)
+        in: path
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/schemas.ReceiptItemResponse'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Buscar item por ID e data de recibo
+      tags:
+      - items
+  /items:
+    get:
+      description: Lista todos os itens de recibos do usuário autenticado
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/schemas.ReceiptItemResponse'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Listar todos os itens
+      tags:
+      - items
+  /items/date/{date}:
+    get:
+      description: Lista itens de recibos do usuário autenticado por data de recibo
+      parameters:
+      - description: Data (YYYY-MM-DD)
+        in: path
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/schemas.ReceiptItemResponse'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Listar itens por data de recibo
+      tags:
+      - items
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with email and password. Returns a JWT token
+        valid for 7 days. Use this token in the Authorization header as "Bearer {token}"
+        for all protected endpoints.
+      parameters:
+      - description: User credentials (email and password)
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful with JWT token
+          schema:
+            $ref: '#/definitions/handler.AuthResponse'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Invalid email or password
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Login
+      tags:
+      - "\U0001F510 Authentication"
+  /me:
+    get:
+      consumes:
+      - application/json
+      description: Get information about the authenticated user (requires JWT token)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User information retrieved successfully
+          schema:
+            $ref: '#/definitions/schemas.UserResponse'
+        "401":
+          description: Unauthorized - Invalid or missing token
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get current user profile
+      tags:
+      - "\U0001F510 Authentication"
+  /product/{id}:
+    get:
+      description: Busca produto pelo ID
+      parameters:
+      - description: ID do produto
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/schemas.ProductResponse'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Buscar produto por ID
+      tags:
+      - products
+  /product/{id}/name/{name}:
+    get:
+      description: Busca produto por ID e nome
+      parameters:
+      - description: ID do produto
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Nome do produto
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/schemas.ProductResponse'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Buscar produto por ID e nome
+      tags:
+      - products
+  /products:
+    get:
+      description: Lista todos os produtos cadastrados
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/schemas.ProductResponse'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Listar todos os produtos
+      tags:
+      - products
+  /products/name/{name}:
+    get:
+      description: Busca produtos pelo nome (parcial)
+      parameters:
+      - description: Nome do produto (parcial)
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/schemas.ProductResponse'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Buscar produtos por nome
+      tags:
+      - products
+  /receipt/{id}:
+    get:
+      description: Busca um recibo pelo ID do usuário autenticado
+      parameters:
+      - description: ID do recibo
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/schemas.ReceiptResponse'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Buscar recibo por ID
+      tags:
+      - notasfiscais
+  /receipts:
+    get:
+      description: Lista todos os recibos do usuário autenticado
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/schemas.ReceiptSummary'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Listar todos os recibos
+      tags:
+      - notasfiscais
+  /receipts-basic:
+    get:
+      description: Lista todos os recibos do usuário autenticado (versão ultra-simplificada
+        para seleção)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/schemas.ReceiptBasic'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Listar recibos básicos
+      tags:
+      - notasfiscais-basic
+  /receipts-basic/date/{date}:
+    get:
+      description: Lista recibos básicos do usuário autenticado por data específica
+        (YYYY-MM-DD)
+      parameters:
+      - description: Data (YYYY-MM-DD)
+        in: path
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/schemas.ReceiptBasic'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Listar recibos básicos por data específica
+      tags:
+      - notasfiscais-basic
+  /receipts-basic/period:
+    get:
+      description: Lista recibos básicos do usuário autenticado por período de datas
+      parameters:
+      - description: Data inicial (YYYY-MM-DD)
+        in: query
+        name: start_date
+        required: true
+        type: string
+      - description: Data final (YYYY-MM-DD)
+        in: query
+        name: end_date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/schemas.ReceiptBasic'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Listar recibos básicos por período
+      tags:
+      - notasfiscais-basic
+  /receipts/date/{date}:
+    get:
+      description: Lista recibos do usuário autenticado por data específica (YYYY-MM-DD)
+      parameters:
+      - description: Data (YYYY-MM-DD)
+        in: path
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/schemas.ReceiptSummary'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Buscar recibos por data específica
+      tags:
+      - notasfiscais
+  /receipts/period:
+    get:
+      description: Lista recibos do usuário autenticado por período de datas
+      parameters:
+      - description: Data inicial (YYYY-MM-DD)
+        in: query
+        name: start_date
+        required: true
+        type: string
+      - description: Data final (YYYY-MM-DD)
+        in: query
+        name: end_date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/schemas.ReceiptSummary'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Buscar recibos por período
+      tags:
+      - notasfiscais
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Create a new user account. After registration, use the login endpoint
+        to get your JWT token.
+      parameters:
+      - description: User registration data (name, email, password)
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User created successfully with JWT token
+          schema:
+            $ref: '#/definitions/handler.AuthResponse'
+        "400":
+          description: Invalid request or email already registered
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Register new user
+      tags:
+      - "\U0001F510 Authentication"
+  /scan-qrcode/confirm:
+    post:
+      consumes:
+      - application/json
+      description: Categoriza items com IA e salva nota fiscal no banco de dados.
+        Envie APENAS o campo 'data' da resposta do preview, NÃO envie 'message'.
+      parameters:
+      - description: Dados da nota (envie APENAS o campo 'data' do preview, sem 'message')
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ScanQRCodeConfirmRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.ScanQRCodeConfirmResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Confirmar e salvar NFC-e (Etapa 2/2)
+      tags:
+      - receipts
+  /scan-qrcode/preview:
+    post:
+      consumes:
+      - application/json
+      description: Extrai dados da NFC-e sem salvar no banco. Retorna dados para visualização/edição
+      parameters:
+      - description: QR Code URL
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ScanQRCodePreviewRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.ScanQRCodePreviewResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Preview de NFC-e via QR Code (Etapa 1/2)
+      tags:
+      - receipts
+securityDefinitions:
+  BearerAuth:
+    description: 'Digite "Bearer" seguido do seu token JWT (obtido no login). Exemplo:
+      Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

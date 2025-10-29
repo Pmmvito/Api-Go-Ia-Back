@@ -1,0 +1,18 @@
+*.exe
+*.ddl
+*.so
+*.dylib
+*.env
+.env
+.env.local
+.env.production
+
+
+
+*.test
+
+*.out
+
+Db folder
+
+db/
