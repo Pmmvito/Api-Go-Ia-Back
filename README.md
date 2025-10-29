@@ -1,6 +1,6 @@
 # Golang API de Gerenciamento de Notas Fiscais com IA
 
-Uma **API REST** moderna e eficiente com sistema completo de autenticação JWT (Bearer Token), **escaneamento de notas fiscais com IA Google Gemini**, e **banco de dados normalizado** seguindo as melhores práticas acadêmicas, desenvolvida em **Go (Golang)**.
+Uma **API REST** modernan e eficiente com sistema completo de autenticação JWT (Bearer Token), **escaneamento de notas fiscais com IA Google Gemini**, e **banco de dados normalizado** seguindo as melhores práticas acadêmicas, desenvolvida em **Go (Golang)**.
 
 ## 🚀 Sobre o Projeto
 
