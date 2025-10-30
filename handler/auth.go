@@ -10,27 +10,27 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// RegisterRequest define os dados necessários para registro
+// RegisterRequest define a estrutura de dados para o registro de um novo usuário.
 type RegisterRequest struct {
 	Name     string `json:"name" binding:"required,min=2" example:"João Silva"`
 	Email    string `json:"email" binding:"required,email" example:"joao@example.com"`
 	Password string `json:"password" binding:"required,min=6" example:"senha123"`
 }
 
-// LoginRequest define os dados necessários para login
+// LoginRequest define a estrutura de dados para o login de um usuário.
 type LoginRequest struct {
 	Email    string `json:"email" binding:"required,email" example:"joao@example.com"`
 	Password string `json:"password" binding:"required" example:"senha123"`
 }
 
-// AuthResponse retorna o token e dados do usuário
+// AuthResponse define a estrutura da resposta de autenticação, contendo o token JWT e os dados do usuário.
 type AuthResponse struct {
 	Message string               `json:"message"`
 	Token   string               `json:"token"`
 	User    schemas.UserResponse `json:"user"`
 }
 
-// GenerateJWT gera um token JWT para o usuário
+// GenerateJWT gera um token JWT para o usuário com validade de 7 dias.
 func GenerateJWT(userID uint) (string, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {

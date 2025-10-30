@@ -10,21 +10,22 @@ import (
 	"gorm.io/gorm"
 )
 
-// ScanQRCodeConfirmRequest representa o request de confirmação (IGUAL ao PreviewReceiptData)
+// ScanQRCodeConfirmRequest define a estrutura do corpo da requisição para a confirmação de um QR code escaneado.
+// Esta estrutura é idêntica a PreviewReceiptData e contém todos os dados do recibo, possivelmente editados pelo usuário.
 type ScanQRCodeConfirmRequest struct {
 	StoreName  string        `json:"storeName" binding:"required"` // Nome do estabelecimento
 	Date       string        `json:"date"`                         // Data da compra (opcional, usa data atual se vazio)
-	Items      []PreviewItem `json:"items" binding:"required"`     // Items (editados) - USA PreviewItem
-	ItemsCount int           `json:"itemsCount"`                   // Total de items
+	Items      []PreviewItem `json:"items" binding:"required"`     // Itens (editados) - utiliza a estrutura PreviewItem
+	ItemsCount int           `json:"itemsCount"`                   // Total de itens
 	Subtotal   float64       `json:"subtotal"`                     // Subtotal
 	Discount   float64       `json:"discount"`                     // Desconto
 	Total      float64       `json:"total"`                        // Total (opcional, calcula se zero)
 	AccessKey  string        `json:"accessKey"`                    // Chave de acesso
 	Number     string        `json:"number"`                       // Número da nota
-	QRCodeURL  string        `json:"qrCodeUrl" binding:"required"` // URL original
+	QRCodeURL  string        `json:"qrCodeUrl" binding:"required"` // URL original do QR code
 }
 
-// ScanQRCodeConfirmResponse representa a resposta após salvar (apenas mensagem)
+// ScanQRCodeConfirmResponse define a estrutura da resposta após a confirmação e salvamento do recibo.
 type ScanQRCodeConfirmResponse struct {
 	Message string `json:"message"`
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GetProductsHandler lista todos os produtos
+// GetProductsHandler lida com a requisição para listar todos os produtos cadastrados no sistema.
 // @Summary Listar todos os produtos
 // @Description Lista todos os produtos cadastrados
 // @Tags products
@@ -22,7 +22,7 @@ func GetProductsHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, products)
 }
 
-// GetProductByIDHandler busca produto por ID
+// GetProductByIDHandler lida com a requisição para buscar um produto pelo seu ID.
 // @Summary Buscar produto por ID
 // @Description Busca produto pelo ID
 // @Tags products

@@ -63,6 +63,9 @@ var (
 // @name Authorization
 // @description Digite "Bearer" seguido do seu token JWT (obtido no login). Exemplo: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
+// main é a função de entrada da aplicação.
+// Ela inicializa o logger, carrega as variáveis de ambiente, configura o banco de dados,
+// define o timezone e inicia o roteador da API.
 func main() {
 	logger = config.GetLogger("main")
 
@@ -73,14 +76,14 @@ func main() {
 		return
 	}
 
-	//initialize configs of projects
+	// Inicializa as configurações do projeto, como o banco de dados.
 	err = config.Init()
 	if err != nil {
 		logger.ErrorF("config initialization erro: %v", err)
 		return
 	}
 
-	// Define o timezone do projeto para America/Sao_Paulo
+	// Define o timezone do projeto para America/Sao_Paulo para consistência de datas.
 	loc, err := time.LoadLocation("America/Sao_Paulo")
 	if err != nil {
 		logger.WarnF("Não foi possível carregar a timezone America/Sao_Paulo: %v", err)
@@ -89,5 +92,6 @@ func main() {
 		logger.InfoF("Timezone definida para %s", loc)
 	}
 
+	// Inicializa e inicia o roteador da API.
 	router.Initialize()
 }

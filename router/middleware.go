@@ -13,7 +13,9 @@ import (
 
 var logger = config.GetLogger("middleware")
 
-// AuthMiddleware valida o token JWT Bearer
+// AuthMiddleware é um middleware Gin que valida o token JWT Bearer.
+// Ele verifica a presença e o formato do cabeçalho de autorização,
+// valida o token e extrai as informações do usuário para o contexto da solicitação.
 func AuthMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		// Pega o header Authorization

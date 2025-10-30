@@ -8,6 +8,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
+// InitializeRoutes configura todos os endpoints da API, dividindo-os em rotas públicas e protegidas.
 func InitializeRoutes(router *gin.Engine) {
 
 	//initialize Handler

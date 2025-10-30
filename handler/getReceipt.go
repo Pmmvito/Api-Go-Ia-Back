@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// GetReceiptsHandler lista todos os recibos do usuário autenticado
+// GetReceiptsHandler lida com a requisição para listar todos os recibos do usuário autenticado.
 // @Summary Listar todos os recibos
 // @Description Lista todos os recibos do usuário autenticado
 // @Tags notasfiscais
@@ -19,12 +19,12 @@ import (
 func GetReceiptsHandler(ctx *gin.Context) {
 	userID, _ := ctx.Get("user_id")
 	var receipts []schemas.Receipt
-	// usa variável global db - preload otimizado para evitar N+1 queries
+	// Utiliza a conexão de banco de dados global 'db' com preload otimizado para evitar queries N+1.
 	db.Preload("Items", func(db *gorm.DB) *gorm.DB {
 		return db.Order("id ASC")
 	}).Preload("Items.Category").Preload("Items.Product").Where("user_id = ?", userID).Order("date DESC").Find(&receipts)
 
-	// Converte para resposta otimizada
+	// Converte para uma resposta otimizada para listagens.
 	summaries := make([]schemas.ReceiptSummary, len(receipts))
 	for i, receipt := range receipts {
 		summaries[i] = receipt.ToSummary()
@@ -33,7 +33,7 @@ func GetReceiptsHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, summaries)
 }
 
-// GetReceiptByIDHandler busca recibo por ID
+// GetReceiptByIDHandler lida com a requisição para buscar um recibo pelo seu ID.
 // @Summary Buscar recibo por ID
 // @Description Busca um recibo pelo ID do usuário autenticado
 // @Tags notasfiscais
@@ -47,7 +47,7 @@ func GetReceiptByIDHandler(ctx *gin.Context) {
 	userID, _ := ctx.Get("user_id")
 	id := ctx.Param("id")
 	var receipt schemas.Receipt
-	// usa variável global db - preload otimizado
+	// Utiliza a conexão de banco de dados global 'db' com preload otimizado.
 	if err := db.Preload("Items", func(db *gorm.DB) *gorm.DB {
 		return db.Order("id ASC")
 	}).Preload("Items.Category").Preload("Items.Product").Where("id = ? AND user_id = ?", id, userID).First(&receipt).Error; err != nil {

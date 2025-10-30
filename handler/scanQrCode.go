@@ -16,7 +16,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-// NFCeData representa os dados extraídos da NFC-e via scraping
+// NFCeData representa os dados extraídos de uma NFC-e através de scraping.
 type NFCeData struct {
 	StoreName  string
 	Date       string
@@ -29,7 +29,7 @@ type NFCeData struct {
 	Number     string
 }
 
-// NFCeItem representa um item da NFC-e
+// NFCeItem representa um único item dentro de uma NFC-e.
 type NFCeItem struct {
 	ItemNumber  int
 	Code        string

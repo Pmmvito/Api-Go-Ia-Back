@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// CreateCategoryRequest define os dados para criar uma categoria
+// CreateCategoryRequest define os dados necessários para criar uma nova categoria.
 type CreateCategoryRequest struct {
 	Name        string `json:"name" binding:"required" example:"Viagens"`
 	Description string `json:"description" example:"Gastos com viagens e turismo"`
@@ -15,7 +15,8 @@ type CreateCategoryRequest struct {
 	Color       string `json:"color" example:"#3498db"`
 }
 
-// UpdateCategoryRequest define os dados para atualizar uma categoria
+// UpdateCategoryRequest define os dados para atualizar uma categoria existente.
+// Todos os campos são ponteiros para permitir atualizações parciais.
 type UpdateCategoryRequest struct {
 	Name        *string `json:"name" example:"Alimentação Fora"`
 	Description *string `json:"description" example:"Restaurantes e delivery"`

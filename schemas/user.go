@@ -7,8 +7,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// User define o modelo de usuário para o banco de dados.
 type User struct {
-	gorm.Model 
+	gorm.Model
 	Name          string         `gorm:"not null"`
 	Email         string         `gorm:"unique;not null;index"`
 	Password      string         `gorm:"not null"`
@@ -16,6 +17,7 @@ type User struct {
 	ShoppingLists []ShoppingList `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"` // Relacionamento HasMany com ShoppingLists
 }
 
+// UserResponse define a estrutura de dados do usuário para respostas da API, omitindo a senha.
 type UserResponse struct {
 	ID        uint      `json:"id"`
 	CreatedAt time.Time `json:"createdAt"`
@@ -24,7 +26,7 @@ type UserResponse struct {
 	Email     string    `json:"email"`
 }
 
-// HashPassword gera o hash da senha
+// HashPassword gera o hash da senha do usuário usando bcrypt.
 func (u *User) HashPassword(password string) error {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -34,13 +36,13 @@ func (u *User) HashPassword(password string) error {
 	return nil
 }
 
-// CheckPassword verifica se a senha está correta
+// CheckPassword verifica se a senha fornecida corresponde ao hash armazenado.
 func (u *User) CheckPassword(password string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password))
 	return err == nil
 }
 
-// ToResponse converte User para UserResponse (sem senha)
+// ToResponse converte um modelo User para o formato UserResponse, omitindo a senha.
 func (u *User) ToResponse() UserResponse {
 	return UserResponse{
 		ID:        u.ID,

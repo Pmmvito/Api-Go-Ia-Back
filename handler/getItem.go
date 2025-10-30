@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GET /items - Lista todos os itens de recibos do usuário autenticado
+// GetItemsHandler lida com a requisição para listar todos os itens de recibos do usuário autenticado.
 // @Summary Listar todos os itens
 // @Description Lista todos os itens de recibos do usuário autenticado
 // @Tags items
@@ -19,12 +19,12 @@ import (
 func GetItemsHandler(ctx *gin.Context) {
 	userID, _ := ctx.Get("user_id")
 	var items []schemas.ReceiptItem
-	// usa variável global db
+	// Utiliza a conexão de banco de dados global 'db'
 	db.Joins("JOIN receipts ON receipts.id = receipt_items.receipt_id").Where("receipts.user_id = ?", userID).Find(&items)
 	ctx.JSON(http.StatusOK, items)
 }
 
-// GET /item/:id - Busca item por ID
+// GetItemByIDHandler lida com a requisição para buscar um item de recibo pelo seu ID.
 // @Summary Buscar item por ID
 // @Description Busca um item pelo ID
 // @Tags items
@@ -37,7 +37,7 @@ func GetItemsHandler(ctx *gin.Context) {
 func GetItemByIDHandler(ctx *gin.Context) {
 	id := ctx.Param("id")
 	var item schemas.ReceiptItem
-	// usa variável global db
+	// Utiliza a conexão de banco de dados global 'db'
 	if err := db.Where("id = ?", id).First(&item).Error; err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Item não encontrado"})
 		return
@@ -45,7 +45,7 @@ func GetItemByIDHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, item)
 }
 
-// GET /items/date/:date - Lista itens por data de recibo
+// GetItemsByDateHandler lida com a requisição para listar itens de recibos do usuário autenticado por uma data específica.
 // @Summary Listar itens por data de recibo
 // @Description Lista itens de recibos do usuário autenticado por data de recibo
 // @Tags items
@@ -58,7 +58,7 @@ func GetItemsByDateHandler(ctx *gin.Context) {
 	userID, _ := ctx.Get("user_id")
 	date := ctx.Param("date")
 	var items []schemas.ReceiptItem
-	// usa variável global db
+	// Utiliza a conexão de banco de dados global 'db'
 	db.Joins("JOIN receipts ON receipts.id = receipt_items.receipt_id").Where("receipts.user_id = ? AND receipts.date = ?", userID, date).Find(&items)
 	ctx.JSON(http.StatusOK, items)
 }

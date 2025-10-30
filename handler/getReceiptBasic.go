@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GetReceiptsBasicHandler lista todos os recibos básicos do usuário autenticado
+// GetReceiptsBasicHandler lida com a requisição para listar todos os recibos do usuário de forma simplificada.
 // @Summary Listar recibos básicos
 // @Description Lista todos os recibos do usuário autenticado (versão ultra-simplificada para seleção)
 // @Tags notasfiscais-basic
@@ -18,13 +18,13 @@ import (
 func GetReceiptsBasicHandler(ctx *gin.Context) {
 	userID, _ := ctx.Get("user_id")
 	var receipts []schemas.Receipt
-	// Query otimizada - apenas carrega contagem de items, sem preload de relacionamentos
+	// Query otimizada - seleciona apenas os campos necessários, sem preloading de relacionamentos complexos.
 	db.Select("id, store_name, date, total, currency, user_id").
 		Where("user_id = ?", userID).
 		Order("date DESC").
 		Find(&receipts)
 
-	// Para cada receipt, conta os items (query separada mas simples)
+	// Para cada recibo, conta os itens associados para preencher o campo ItemCount.
 	basics := make([]schemas.ReceiptBasic, len(receipts))
 	for i, receipt := range receipts {
 		var count int64
