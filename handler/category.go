@@ -24,6 +24,14 @@ type UpdateCategoryRequest struct {
 	Color       *string `json:"color" example:"#e74c3c"`
 }
 
+// CategoryGraphResponse define a estrutura para a resposta do endpoint de gráfico de categorias.
+type CategoryGraphResponse struct {
+	ID        uint    `json:"id"`
+	Name      string  `json:"name"`
+	ItemCount int64   `json:"itemCount"`
+	Total     float64 `json:"total"`
+}
+
 // @Summary Create new category
 // @Description Create a new expense category for organizing receipt items
 // @Tags 📁 Categories
@@ -230,5 +238,40 @@ func DeleteCategoryHandler(ctx *gin.Context) {
 	logger.InfoF("Category %s deleted successfully", id)
 	ctx.JSON(http.StatusOK, gin.H{
 		"message": "Category deleted successfully",
+	})
+}
+
+// @Summary Get category graph data
+// @Description Get aggregated data for each category, including item count and total value, for the authenticated user.
+// @Tags 📁 Categories
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "Category graph data retrieved successfully"
+// @Failure 401 {object} ErrorResponse "Unauthorized - Invalid or missing token"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /categories/graph [get]
+func GetCategoryGraphHandler(ctx *gin.Context) {
+	userID, _ := ctx.Get("user_id")
+
+	var results []CategoryGraphResponse
+
+	err := db.Table("categories").
+		Select("categories.id, categories.name, COUNT(receipt_items.id) as item_count, SUM(receipt_items.total) as total").
+		Joins("LEFT JOIN receipt_items ON receipt_items.category_id = categories.id").
+		Joins("LEFT JOIN receipts ON receipts.id = receipt_items.receipt_id AND receipts.user_id = ?", userID).
+		Group("categories.id, categories.name").
+		Order("categories.name ASC").
+		Scan(&results).Error
+
+	if err != nil {
+		logger.ErrorF("error getting category graph data: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error getting category graph data")
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Category graph data retrieved successfully",
+		"data":    results,
 	})
 }
