@@ -65,6 +65,67 @@ const docTemplate = `{
                 }
             }
         },
+        "/categories/graph": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get aggregated data for each category, including item count and total value. Filters by date range, defaulting to the current month.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "📁 Categories"
+                ],
+                "summary": "Get category graph data",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Start date for filtering (YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "End date for filtering (YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Category graph data retrieved successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid date format",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing token",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/category": {
             "post": {
                 "security": [
@@ -325,6 +386,124 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete an existing receipt item by its ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "items"
+                ],
+                "summary": "Delete an item",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Item ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing receipt item. All fields are optional.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "items"
+                ],
+                "summary": "Update an item",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Item ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Item data to update",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateItemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/schemas.ReceiptItemResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     }
                 }
@@ -669,6 +848,124 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete an existing product by its ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "products"
+                ],
+                "summary": "Delete a product",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing product. All fields are optional.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "products"
+                ],
+                "summary": "Update a product",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Product data to update",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateProductRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/schemas.ProductResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
             }
         },
         "/receipt/{id}": {
@@ -709,6 +1006,124 @@ const docTemplate = `{
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete an existing receipt by its ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "notasfiscais"
+                ],
+                "summary": "Delete a receipt",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Receipt ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update an existing receipt. All fields are optional.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "notasfiscais"
+                ],
+                "summary": "Update a receipt",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Receipt ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Receipt data to update",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateReceiptRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/schemas.ReceiptResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     }
                 }
@@ -1152,7 +1567,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "deleted": {
-                    "description": "Se true, item será ignorado (usado no confirm)",
+                    "description": "Se true, o item será ignorado ao confirmar",
                     "type": "boolean"
                 },
                 "description": {
@@ -1160,11 +1575,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "quantity": {
-                    "description": "Quantidade",
+                    "description": "Quantidade do item",
                     "type": "number"
                 },
                 "tempId": {
-                    "description": "ID temporário para edição",
+                    "description": "ID temporário para facilitar a edição no frontend",
                     "type": "integer"
                 },
                 "total": {
@@ -1172,11 +1587,11 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "unit": {
-                    "description": "Unidade (kg, un, ml, etc)",
+                    "description": "Unidade de medida (kg, un, ml, etc)",
                     "type": "string"
                 },
                 "unitPrice": {
-                    "description": "Preço unitário",
+                    "description": "Preço por unidade",
                     "type": "number"
                 }
             }
@@ -1197,14 +1612,14 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "items": {
-                    "description": "Items extraídos",
+                    "description": "Itens extraídos do recibo",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/handler.PreviewItem"
                     }
                 },
                 "itemsCount": {
-                    "description": "Total de items",
+                    "description": "Total de itens",
                     "type": "integer"
                 },
                 "number": {
@@ -1212,7 +1627,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "qrCodeUrl": {
-                    "description": "URL original (para confirmação)",
+                    "description": "URL original do QR code para confirmação",
                     "type": "string"
                 },
                 "storeName": {
@@ -1274,14 +1689,14 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "items": {
-                    "description": "Items (editados) - USA PreviewItem",
+                    "description": "Itens (editados) - utiliza a estrutura PreviewItem",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/handler.PreviewItem"
                     }
                 },
                 "itemsCount": {
-                    "description": "Total de items",
+                    "description": "Total de itens",
                     "type": "integer"
                 },
                 "number": {
@@ -1289,7 +1704,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "qrCodeUrl": {
-                    "description": "URL original",
+                    "description": "URL original do QR code",
                     "type": "string"
                 },
                 "storeName": {
@@ -1358,6 +1773,57 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.UpdateItemRequest": {
+            "type": "object",
+            "properties": {
+                "categoryId": {
+                    "type": "integer"
+                },
+                "productId": {
+                    "type": "integer"
+                },
+                "quantity": {
+                    "type": "number"
+                },
+                "total": {
+                    "type": "number"
+                },
+                "unitPrice": {
+                    "type": "number"
+                }
+            }
+        },
+        "handler.UpdateProductRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "unity": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.UpdateReceiptRequest": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "discount": {
+                    "type": "number"
+                },
+                "storeName": {
+                    "type": "string"
+                },
+                "subtotal": {
+                    "type": "number"
+                },
+                "total": {
+                    "type": "number"
+                }
+            }
+        },
         "schemas.CategorySimple": {
             "type": "object",
             "properties": {
@@ -1416,7 +1882,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "itemCount": {
-                    "description": "Quantidade de itens",
+                    "description": "Número de itens",
                     "type": "integer"
                 },
                 "storeName": {
