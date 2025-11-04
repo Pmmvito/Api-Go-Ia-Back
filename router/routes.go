@@ -40,6 +40,8 @@ func InitializeRoutes(router *gin.Engine) {
 		// Rotas de produtos
 		protected.GET("/products", handler.GetProductsHandler)
 		protected.GET("/products/:id", handler.GetProductByIDHandler)
+		protected.PATCH("/products/:id", handler.UpdateProductHandler)
+		protected.DELETE("/products/:id", handler.DeleteProductHandler)
 		// Buscar todos os produtos de uma data específica (YYYY-MM-DD)
 		protected.GET("/products/date/:date", handler.GetProductsByDateHandler)
 		// Buscar todos os produtos dentro de um período (query params: start, end)
@@ -50,6 +52,8 @@ func InitializeRoutes(router *gin.Engine) {
 		protected.GET("/receipts/date/:date", handler.GetReceiptsByDateHandler)
 		protected.GET("/receipts/period", handler.GetReceiptsByPeriodHandler)
 		protected.GET("/receipt/:id", handler.GetReceiptByIDHandler)
+		protected.PATCH("/receipt/:id", handler.UpdateReceiptHandler)
+		protected.DELETE("/receipt/:id", handler.DeleteReceiptHandler)
 
 		// Rotas de recibos básicos (ultra-simplificados para seleção)
 		protected.GET("/receipts-basic", handler.GetReceiptsBasicHandler)
@@ -60,6 +64,8 @@ func InitializeRoutes(router *gin.Engine) {
 		protected.GET("/items", handler.GetItemsHandler)
 		protected.GET("/items/date/:date", handler.GetItemsByDateHandler)
 		protected.GET("/item/:id", handler.GetItemByIDHandler)
+		protected.PATCH("/item/:id", handler.UpdateItemHandler)
+		protected.DELETE("/item/:id", handler.DeleteItemHandler)
 		// Buscar itens por período (query params: start, end)
 		protected.GET("/items/period", handler.GetItemsByPeriodHandler)
 
