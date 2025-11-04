@@ -58,7 +58,7 @@ type ReceiptItemSummary struct {
 	Total      float64         `json:"total"`
 }
 
-// ProductSimple fornece uma representação leve de um produto, com apenas nome e unidade.
+// ProductSimple fornece uma representação leve ede um produto, com apenas nome e unidade.
 type ProductSimple struct {
 	ID    uint   `json:"id"`
 	Name  string `json:"name"`
