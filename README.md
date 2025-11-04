@@ -197,31 +197,39 @@ http://localhost:8080/swagger/index.html
 |--------|----------|-----------|
 | `GET` | `/api/v1/me` | Obter dados do usuário autenticado |
 
+**Produtos:**
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `GET` | `/api/v1/products` | Listar todos os produtos |
+| `GET` | `/api/v1/products/:id` | Obter produto específico |
+| `PATCH` | `/api/v1/products/:id` | Atualizar produto |
+| `DELETE` | `/api/v1/products/:id` | Deletar produto |
+
 **Notas Fiscais:**
 | Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| `POST` | `/api/v1/scan-receipt` | Escanear nota fiscal com IA |
+|---|---|---|
 | `GET` | `/api/v1/receipts` | Listar todos os recibos |
 | `GET` | `/api/v1/receipt/:id` | Obter recibo específico |
 | `PATCH` | `/api/v1/receipt/:id` | Atualizar recibo |
 | `DELETE` | `/api/v1/receipt/:id` | Deletar recibo |
 
-**Items:**
+**Itens:**
 | Método | Endpoint | Descrição |
-|--------|----------|-----------|
-| `GET` | `/api/v1/items` | Listar todos os items |
-| `GET` | `/api/v1/items/filter` | Filtrar items (categoria, data) |
-| `GET` | `/api/v1/receipt/:id/item/:itemId` | Obter item específico |
-| `PATCH` | `/api/v1/receipt/:id/item/:itemId` | Atualizar item |
+|---|---|---|
+| `GET` | `/api/v1/items` | Listar todos os itens |
+| `GET` | `/api/v1/item/:id` | Obter item específico |
+| `PATCH` | `/api/v1/item/:id` | Atualizar item |
+| `DELETE` | `/api/v1/item/:id` | Deletar item |
 
 **Categorias:**
 | Método | Endpoint | Descrição |
-|--------|----------|-----------|
+|---|---|---|
 | `POST` | `/api/v1/category` | Criar categoria |
 | `GET` | `/api/v1/categories` | Listar todas as categorias |
 | `GET` | `/api/v1/category/:id` | Obter categoria específica |
 | `PATCH` | `/api/v1/category/:id` | Atualizar categoria |
 | `DELETE` | `/api/v1/category/:id` | Deletar categoria |
+| `GET` | `/api/v1/categories/graph` | Obter dados agregados por categoria |
 
 ### Exemplo de Uso
 

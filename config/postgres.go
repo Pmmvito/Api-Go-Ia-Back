@@ -8,6 +8,8 @@ import (
 	"gorm.io/gorm"
 )
 
+// InitializePostgreSQL conecta ao banco de dados PostgreSQL, realiza a auto-migração para os schemas,
+// e cria categorias padrão se elas não existirem. Retorna uma instância de DB GORM ou um erro.
 func InitializePostgreSQL() (*gorm.DB, error) {
 	logger := GetLogger("postgres")
 
@@ -47,7 +49,8 @@ func InitializePostgreSQL() (*gorm.DB, error) {
 	return db, nil
 }
 
-// createDefaultCategories cria categorias padrão no banco de dados
+// createDefaultCategories verifica a existência de categorias padrão no banco de dados
+// e as cria se não estiverem presentes. Isso garante que a aplicação tenha um conjunto base de categorias para trabalhar.
 func createDefaultCategories(db *gorm.DB, logger *Logger) {
 	// Categorias padrão simplificadas e não redundantes para evitar confusão na IA
 	defaultCategories := []schemas.Category{

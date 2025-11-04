@@ -6,46 +6,47 @@ import (
 	"gorm.io/gorm"
 )
 
-// CategorySimple representa categoria com apenas ID e Nome (para resposta leve)
+// CategorySimple fornece uma representação leve de uma categoria, incluindo apenas ID e Nome.
 type CategorySimple struct {
 	ID   uint   `json:"id"`
 	Name string `json:"name"`
 }
 
-// ReceiptItem representa um item da nota fiscal (tabela separada)
+// ReceiptItem representa um item em um recibo. É armazenado em uma tabela separada
+// e vinculado a um recibo, um produto e uma categoria.
 type ReceiptItem struct {
 	gorm.Model
-	ReceiptID  uint      `json:"receiptId" gorm:"not null;index"`                 // FK para Receipt
-	CategoryID uint      `json:"categoryId" gorm:"not null;index"`                // FK para Category
+	ReceiptID  uint      `json:"receiptId" gorm:"not null;index"`                 // Chave estrangeira para Receipt
+	CategoryID uint      `json:"categoryId" gorm:"not null;index"`                // Chave estrangeira para Category
 	Category   *Category `json:"category,omitempty" gorm:"foreignKey:CategoryID"` // Relacionamento com Category
-	ProductID  uint      `json:"productId" gorm:"not null;index"`                 // FK para Product
+	ProductID  uint      `json:"productId" gorm:"not null;index"`                 // Chave estrangeira para Product
 	Product    *Product  `json:"product,omitempty" gorm:"foreignKey:ProductID"`   // Relacionamento com Product
-	Quantity   float64   `json:"quantity" gorm:"type:decimal(10,3);not null"`     // Quantidade ou peso
-	UnitPrice  float64   `json:"unitPrice" gorm:"type:decimal(10,2);not null"`    // Preço unitário
-	Total      float64   `json:"total" gorm:"type:decimal(10,2);not null"`        // Total do item
-	// Campos legados para compatibilidade (serão removidos futuramente)
+	Quantity   float64   `json:"quantity" gorm:"type:decimal(10,3);not null"`     // Quantidade ou peso do item
+	UnitPrice  float64   `json:"unitPrice" gorm:"type:decimal(10,2);not null"`    // Preço unitário do item
+	Total      float64   `json:"total" gorm:"type:decimal(10,2);not null"`        // Preço total do item
+	// Campos legados para compatibilidade, a serem removidos no futuro.
 	Description string `json:"description,omitempty" gorm:"-"` // Legado: usar Product.Name
 	Unit        string `json:"unit,omitempty" gorm:"-"`        // Legado: usar Product.Unity
 }
 
-// Receipt representa uma nota fiscal escaneada
+// Receipt representa um recibo escaneado no banco de dados.
 type Receipt struct {
 	gorm.Model
-	UserID      uint          `json:"userId" gorm:"not null;index"`                                  // FK para User
+	UserID      uint          `json:"userId" gorm:"not null;index"`                                  // Chave estrangeira para User
 	User        *User         `json:"user,omitempty" gorm:"foreignKey:UserID"`                       // Relacionamento com User
-	StoreName   string        `json:"storeName"`                                                     // Nome do estabelecimento
+	StoreName   string        `json:"storeName"`                                                     // Nome da loja
 	Date        string        `json:"date" gorm:"type:date;index"`                                   // Data da compra (YYYY-MM-DD)
-	Items       []ReceiptItem `json:"items" gorm:"foreignKey:ReceiptID;constraint:OnDelete:CASCADE"` // Relacionamento HasMany
-	Subtotal    float64       `json:"subtotal" gorm:"type:decimal(10,2)"`                            // Subtotal
-	Discount    float64       `json:"discount" gorm:"type:decimal(10,2)"`                            // Desconto
+	Items       []ReceiptItem `json:"items" gorm:"foreignKey:ReceiptID;constraint:OnDelete:CASCADE"` // Relacionamento HasMany com ReceiptItem
+	Subtotal    float64       `json:"subtotal" gorm:"type:decimal(10,2)"`                            // Subtotal do recibo
+	Discount    float64       `json:"discount" gorm:"type:decimal(10,2)"`                            // Valor do desconto
 	Total       float64       `json:"total" gorm:"type:decimal(10,2)"`                               // Total final
-	Currency    string        `json:"currency" gorm:"size:3;default:'BRL'"`                          // Moeda (BRL, USD, etc)
-	Confidence  float64       `json:"confidence" gorm:"type:decimal(3,2)"`                           // Confiança da IA (0-1)
-	Notes       string        `json:"notes" gorm:"type:text"`                                        // Observações da IA
+	Currency    string        `json:"currency" gorm:"size:3;default:'BRL'"`                          // Moeda (ex: BRL, USD)
+	Confidence  float64       `json:"confidence" gorm:"type:decimal(3,2)"`                           // Pontuação de confiança da IA (0-1)
+	Notes       string        `json:"notes" gorm:"type:text"`                                        // Notas da IA
 	ImageBase64 string        `json:"-" gorm:"type:text"`                                            // Imagem original em base64
 }
 
-// ReceiptItemSummary representa um item resumido para listagens (sem campos de auditoria)
+// ReceiptItemSummary fornece uma visão resumida de um item de recibo, excluindo campos de auditoria.
 type ReceiptItemSummary struct {
 	ID         uint            `json:"id"`
 	CategoryID uint            `json:"categoryId"`
@@ -57,24 +58,24 @@ type ReceiptItemSummary struct {
 	Total      float64         `json:"total"`
 }
 
-// ProductSimple representa produto com apenas nome e unidade (para resposta leve)
+// ProductSimple fornece uma representação leve de um produto, com apenas nome e unidade.
 type ProductSimple struct {
 	ID     uint   `json:"id"`
 	Name   string `json:"name"`
 	Unity  string `json:"unity"`
 }
 
-// ReceiptBasic representa uma versão ultra-simplificada do recibo para listagens rápidas
+// ReceiptBasic fornece uma versão ultra-simplificada de um recibo para listagens rápidas.
 type ReceiptBasic struct {
 	ID        uint    `json:"id"`
 	StoreName string  `json:"storeName"`
 	Date      string  `json:"date"`
-	ItemCount int     `json:"itemCount"` // Quantidade de itens
+	ItemCount int     `json:"itemCount"` // Número de itens
 	Total     float64 `json:"total"`
 	Currency  string  `json:"currency"`
 }
 
-// ReceiptSummary representa uma versão leve do recibo para listagens
+// ReceiptSummary fornece uma versão leve de um recibo para listagens.
 type ReceiptSummary struct {
 	ID        uint                  `json:"id"`
 	StoreName string                `json:"storeName"`
@@ -84,7 +85,7 @@ type ReceiptSummary struct {
 	Currency  string                `json:"currency"`
 }
 
-// ReceiptItemResponse representa um item na resposta da API (sem gorm.Model para Swagger)
+// ReceiptItemResponse define a estrutura de um item de recibo nas respostas da API, excluindo gorm.Model para o Swagger.
 type ReceiptItemResponse struct {
 	ID         uint            `json:"id"`
 	CreatedAt  time.Time       `json:"createdAt"`
@@ -98,7 +99,7 @@ type ReceiptItemResponse struct {
 	Total      float64         `json:"total"`
 }
 
-// ReceiptResponse representa a resposta da API de scan
+// ReceiptResponse representa a resposta para uma chamada de API de recibo escaneado.
 type ReceiptResponse struct {
 	ID         uint                  `json:"id"`
 	CreatedAt  time.Time             `json:"createdAt"`
@@ -115,7 +116,7 @@ type ReceiptResponse struct {
 	Notes      string                `json:"notes"`
 }
 
-// ToBasic converte Receipt para ReceiptBasic (versão ultra-simplificada para listagens rápidas)
+// ToBasic converte um Receipt para um ReceiptBasic, uma versão ultra-simplificada para listagens rápidas.
 func (r *Receipt) ToBasic() ReceiptBasic {
 	return ReceiptBasic{
 		ID:        r.ID,
@@ -127,9 +128,9 @@ func (r *Receipt) ToBasic() ReceiptBasic {
 	}
 }
 
-// ToSummary converte Receipt para ReceiptSummary (versão leve para listagens)
+// ToSummary converte um Receipt para um ReceiptSummary, uma versão leve para listagens.
 func (r *Receipt) ToSummary() ReceiptSummary {
-	// Converte items para versão resumida
+	// Converte itens para uma versão resumida
 	items := make([]ReceiptItemSummary, len(r.Items))
 	for i, item := range r.Items {
 		itemSummary := ReceiptItemSummary{
@@ -171,9 +172,9 @@ func (r *Receipt) ToSummary() ReceiptSummary {
 	}
 }
 
-// ToResponse converte Receipt para ReceiptResponse
+// ToResponse converte um Receipt para um ReceiptResponse.
 func (r *Receipt) ToResponse() ReceiptResponse {
-	// Converte items
+	// Converte itens
 	items := make([]ReceiptItemResponse, len(r.Items))
 	for i, item := range r.Items {
 		itemResponse := ReceiptItemResponse{
@@ -216,7 +217,7 @@ func (r *Receipt) ToResponse() ReceiptResponse {
 	}
 }
 
-// ToResponse converte ReceiptItem para ReceiptItemResponse
+// ToResponse converte um ReceiptItem para um ReceiptItemResponse.
 func (item *ReceiptItem) ToResponse() ReceiptItemResponse {
 	itemResponse := ReceiptItemResponse{
 		ID:         item.ID,

@@ -6,18 +6,20 @@ import (
 	"gorm.io/gorm"
 )
 
-// Category representa uma categoria de produto
+// Category representa uma categoria de produto no banco de dados.
+// Inclui detalhes como nome, descrição, ícone e cor.
 type Category struct {
 	gorm.Model
 	Name         string        `json:"name" gorm:"unique;not null"`    // Nome da categoria
 	Description  string        `json:"description"`                    // Descrição da categoria
-	Icon         string        `json:"icon"`                           // Emoji ou ícone da categoria
-	Color        string        `json:"color"`                          // Cor em hexadecimal (#FF5733)
+	Icon         string        `json:"icon"`                           // Emoji ou ícone representando a categoria
+	Color        string        `json:"color"`                          // Código de cor hexadecimal para a categoria (ex: #FF5733)
 	ReceiptItems []ReceiptItem `json:"-" gorm:"foreignKey:CategoryID"` // Relacionamento HasMany com ReceiptItems
 	ListItems    []ListItem    `json:"-" gorm:"foreignKey:CategoryID"` // Relacionamento HasMany com ListItems
 }
 
-// CategoryResponse representa a resposta da API de categoria
+// CategoryResponse define a estrutura dos dados da categoria enviados nas respostas da API.
+// Omite campos sensíveis ou desnecessários do modelo Category.
 type CategoryResponse struct {
 	ID          uint      `json:"id"`
 	CreatedAt   time.Time `json:"createdAt"`
@@ -28,7 +30,8 @@ type CategoryResponse struct {
 	Color       string    `json:"color"`
 }
 
-// ToResponse converte Category para CategoryResponse
+// ToResponse converte um modelo Category para o formato CategoryResponse.
+// Isso é útil para garantir respostas de API consistentes.
 func (c *Category) ToResponse() CategoryResponse {
 	return CategoryResponse{
 		ID:          c.ID,

@@ -8,7 +8,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GetProductsHandler lista todos os produtos
+// UpdateProductRequest define a estrutura para atualizar um produto.
+// Todos os campos são ponteiros para permitir atualizações parciais.
+type UpdateProductRequest struct {
+	Name  *string `json:"name"`
+	Unity *string `json:"unity"`
+}
+
+// GetProductsHandler lida com a requisição para listar todos os produtos cadastrados no sistema.
 // @Summary Listar todos os produtos
 // @Description Lista todos os produtos cadastrados
 // @Tags products
@@ -22,7 +29,7 @@ func GetProductsHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, products)
 }
 
-// GetProductByIDHandler busca produto por ID
+// GetProductByIDHandler lida com a requisição para buscar um produto pelo seu ID.
 // @Summary Buscar produto por ID
 // @Description Busca produto pelo ID
 // @Tags products
@@ -66,6 +73,90 @@ func GetProductsByDateHandler(ctx *gin.Context) {
 	var products []schemas.Product
 	db.Where("created_at >= ? AND created_at < ?", start, end).Find(&products)
 	ctx.JSON(http.StatusOK, products)
+}
+
+// @Summary Update a product
+// @Description Update an existing product. All fields are optional.
+// @Tags products
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Product ID"
+// @Param request body UpdateProductRequest true "Product data to update"
+// @Success 200 {object} schemas.ProductResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /products/{id} [patch]
+func UpdateProductHandler(ctx *gin.Context) {
+	id := ctx.Param("id")
+	if id == "" {
+		sendError(ctx, http.StatusBadRequest, "Product ID is required")
+		return
+	}
+
+	var request UpdateProductRequest
+	if err := ctx.ShouldBindJSON(&request); err != nil {
+		logger.ErrorF("validation error: %v", err.Error())
+		sendError(ctx, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var product schemas.Product
+	if err := db.First(&product, id).Error; err != nil {
+		sendError(ctx, http.StatusNotFound, "Product not found")
+		return
+	}
+
+	// Atualiza apenas os campos fornecidos
+	if request.Name != nil {
+		product.Name = *request.Name
+	}
+	if request.Unity != nil {
+		product.Unity = *request.Unity
+	}
+
+	if err := db.Save(&product).Error; err != nil {
+		logger.ErrorF("error updating product: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error updating product")
+		return
+	}
+
+	ctx.JSON(http.StatusOK, product.ToResponse())
+}
+
+// @Summary Delete a product
+// @Description Delete an existing product by its ID.
+// @Tags products
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Product ID"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /products/{id} [delete]
+func DeleteProductHandler(ctx *gin.Context) {
+	id := ctx.Param("id")
+	if id == "" {
+		sendError(ctx, http.StatusBadRequest, "Product ID is required")
+		return
+	}
+
+	var product schemas.Product
+	if err := db.First(&product, id).Error; err != nil {
+		sendError(ctx, http.StatusNotFound, "Product not found")
+		return
+	}
+
+	if err := db.Delete(&product).Error; err != nil {
+		logger.ErrorF("error deleting product: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error deleting product")
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "Product deleted successfully"})
 }
 
 // GetProductsByPeriodHandler busca todos os produtos dentro de um período de tempo

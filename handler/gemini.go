@@ -12,26 +12,30 @@ import (
 	"github.com/Pmmvito/Golang-Api-Exemple/schemas"
 )
 
-// GeminiRequest representa a requisição para a API do Gemini
+// GeminiRequest define a estrutura do corpo da requisição para a API do Gemini.
 type GeminiRequest struct {
 	Contents []GeminiContent `json:"contents"`
 }
 
+// GeminiContent representa o conteúdo da requisição, contendo múltiplas partes.
 type GeminiContent struct {
 	Parts []GeminiPart `json:"parts"`
 }
 
+// GeminiPart pode conter texto ou dados de imagem.
 type GeminiPart struct {
 	Text       string            `json:"text,omitempty"`
 	InlineData *GeminiInlineData `json:"inlineData,omitempty"`
 }
 
+// GeminiInlineData contém os dados da imagem em base64.
 type GeminiInlineData struct {
 	MimeType string `json:"mimeType"`
 	Data     string `json:"data"`
 }
 
-// GeminiResponse representa a resposta da API do Gemini
+// GeminiResponse define a estrutura da resposta da API do Gemini,
+// focando em extrair o texto dos candidatos.
 type GeminiResponse struct {
 	Candidates []struct {
 		Content struct {
@@ -42,7 +46,7 @@ type GeminiResponse struct {
 	} `json:"candidates"`
 }
 
-// GeminiReceiptData é a estrutura que a IA retorna
+// GeminiReceiptData é a estrutura que a IA do Gemini deve retornar após analisar um recibo.
 type GeminiReceiptData struct {
 	StoreName  string              `json:"storeName"`
 	Date       string              `json:"date"`
@@ -55,14 +59,14 @@ type GeminiReceiptData struct {
 	Notes      string              `json:"notes"`
 }
 
-// GeminiReceiptItem é um item retornado pela IA (simplificado)
+// GeminiReceiptItem representa um item de recibo simplificado, conforme retornado pela IA.
 type GeminiReceiptItem struct {
 	Description string  `json:"description"`
 	Quantity    float64 `json:"quantity"`
 	Unit        string  `json:"unit"`
 	UnitPrice   float64 `json:"unitPrice"`
 	Total       float64 `json:"total"`
-	CategoryID  uint    `json:"categoryId"` // ✅ Agora apenas o ID da categoria
+	CategoryID  uint    `json:"categoryId"` // A IA retorna apenas o ID da categoria.
 }
 
 // AnalyzeReceiptWithGemini analisa uma ou múltiplas imagens de nota fiscal usando o Gemini

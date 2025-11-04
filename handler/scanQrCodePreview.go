@@ -8,37 +8,38 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ScanQRCodePreviewRequest representa o request de preview
+// ScanQRCodePreviewRequest define a estrutura do corpo da requisição para o preview de um QR code.
 type ScanQRCodePreviewRequest struct {
 	QRCodeURL string `json:"qrCodeUrl" binding:"required"` // URL do QR Code da NFC-e
 }
 
-// PreviewItem representa um item no preview (antes de salvar)
+// PreviewItem representa um item no preview do recibo, antes de ser salvo.
+// Inclui um ID temporário e um campo 'Deleted' para edição no frontend.
 type PreviewItem struct {
-	TempID      int     `json:"tempId"`            // ID temporário para edição
+	TempID      int     `json:"tempId"`            // ID temporário para facilitar a edição no frontend
 	Description string  `json:"description"`       // Nome do produto
-	Quantity    float64 `json:"quantity"`          // Quantidade
-	Unit        string  `json:"unit"`              // Unidade (kg, un, ml, etc)
-	UnitPrice   float64 `json:"unitPrice"`         // Preço unitário
+	Quantity    float64 `json:"quantity"`          // Quantidade do item
+	Unit        string  `json:"unit"`              // Unidade de medida (kg, un, ml, etc)
+	UnitPrice   float64 `json:"unitPrice"`         // Preço por unidade
 	Total       float64 `json:"total"`             // Total do item
-	Deleted     bool    `json:"deleted,omitempty"` // Se true, item será ignorado (usado no confirm)
+	Deleted     bool    `json:"deleted,omitempty"` // Se true, o item será ignorado ao confirmar
 }
 
-// PreviewReceiptData representa os dados da nota para preview
+// PreviewReceiptData representa a estrutura completa dos dados do recibo para o preview.
 type PreviewReceiptData struct {
 	StoreName  string        `json:"storeName"`  // Nome do estabelecimento
 	Date       string        `json:"date"`       // Data da compra
-	Items      []PreviewItem `json:"items"`      // Items extraídos
-	ItemsCount int           `json:"itemsCount"` // Total de items
+	Items      []PreviewItem `json:"items"`      // Itens extraídos do recibo
+	ItemsCount int           `json:"itemsCount"` // Total de itens
 	Subtotal   float64       `json:"subtotal"`   // Subtotal
 	Discount   float64       `json:"discount"`   // Desconto
 	Total      float64       `json:"total"`      // Total
 	AccessKey  string        `json:"accessKey"`  // Chave de acesso da NFC-e
 	Number     string        `json:"number"`     // Número da nota
-	QRCodeURL  string        `json:"qrCodeUrl"`  // URL original (para confirmação)
+	QRCodeURL  string        `json:"qrCodeUrl"`  // URL original do QR code para confirmação
 }
 
-// ScanQRCodePreviewResponse representa a resposta do preview
+// ScanQRCodePreviewResponse define a estrutura da resposta da API de preview.
 type ScanQRCodePreviewResponse struct {
 	Message string             `json:"message"`
 	Data    PreviewReceiptData `json:"data"`

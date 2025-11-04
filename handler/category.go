@@ -2,12 +2,12 @@ package handler
 
 import (
 	"net/http"
-
+	"time"
 	"github.com/Pmmvito/Golang-Api-Exemple/schemas"
 	"github.com/gin-gonic/gin"
 )
 
-// CreateCategoryRequest define os dados para criar uma categoria
+// CreateCategoryRequest define os dados necessários para criar uma nova categoria.
 type CreateCategoryRequest struct {
 	Name        string `json:"name" binding:"required" example:"Viagens"`
 	Description string `json:"description" example:"Gastos com viagens e turismo"`
@@ -15,12 +15,27 @@ type CreateCategoryRequest struct {
 	Color       string `json:"color" example:"#3498db"`
 }
 
-// UpdateCategoryRequest define os dados para atualizar uma categoria
+// UpdateCategoryRequest define os dados para atualizar uma categoria existente.
+// Todos os campos são ponteiros para permitir atualizações parciais.
 type UpdateCategoryRequest struct {
 	Name        *string `json:"name" example:"Alimentação Fora"`
 	Description *string `json:"description" example:"Restaurantes e delivery"`
 	Icon        *string `json:"icon" example:"🍕"`
 	Color       *string `json:"color" example:"#e74c3c"`
+}
+
+// CategoryGraphResponse define a estrutura para a resposta do endpoint de gráfico de categorias.
+type CategoryGraphResponse struct {
+	ID        uint    `json:"id"`
+	Name      string  `json:"name"`
+	ItemCount int64   `json:"itemCount"`
+	Total     float64 `json:"total"`
+}
+
+// GraphData define a estrutura de encapsulamento para a resposta do gráfico.
+type GraphData struct {
+	Categories []CategoryGraphResponse `json:"categories"`
+	GrandTotal float64                 `json:"grandTotal"`
 }
 
 // @Summary Create new category
@@ -229,5 +244,80 @@ func DeleteCategoryHandler(ctx *gin.Context) {
 	logger.InfoF("Category %s deleted successfully", id)
 	ctx.JSON(http.StatusOK, gin.H{
 		"message": "Category deleted successfully",
+	})
+}
+
+// @Summary Get category graph data
+// @Description Get aggregated data for each category, including item count and total value. Filters by date range, defaulting to the current month.
+// @Tags 📁 Categories
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param start_date query string false "Start date for filtering (YYYY-MM-DD)"
+// @Param end_date query string false "End date for filtering (YYYY-MM-DD)"
+// @Success 200 {object} map[string]interface{} "Category graph data retrieved successfully"
+// @Failure 400 {object} ErrorResponse "Invalid date format"
+// @Failure 401 {object} ErrorResponse "Unauthorized - Invalid or missing token"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /categories/graph [get]
+func GetCategoryGraphHandler(ctx *gin.Context) {
+	userID, _ := ctx.Get("user_id")
+	startDateStr := ctx.Query("start_date")
+	endDateStr := ctx.Query("end_date")
+
+	var startDate, endDate time.Time
+	var err error
+
+	if startDateStr == "" || endDateStr == "" {
+		// Padrão para o mês atual
+		now := time.Now()
+		startDate = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local)
+		endDate = startDate.AddDate(0, 1, 0)
+	} else {
+		startDate, err = time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			sendError(ctx, http.StatusBadRequest, "Invalid start_date format. Use YYYY-MM-DD")
+			return
+		}
+		endDate, err = time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			sendError(ctx, http.StatusBadRequest, "Invalid end_date format. Use YYYY-MM-DD")
+			return
+		}
+		// Adiciona um dia ao endDate para incluir todo o período
+		endDate = endDate.AddDate(0, 0, 1)
+	}
+
+	var results []CategoryGraphResponse
+
+	// Subconsulta otimizada: filtra primeiro os recibos do usuário no período
+	subQuery := db.Table("receipts").
+		Select("id").
+		Where("user_id = ? AND date >= ? AND date < ?", userID, startDate, endDate)
+
+	query := db.Table("categories").
+		Select("categories.id, categories.name, COUNT(receipt_items.id) as item_count, COALESCE(SUM(receipt_items.total), 0) as total").
+		Joins("LEFT JOIN receipt_items ON receipt_items.category_id = categories.id AND receipt_items.receipt_id IN (?)", subQuery).
+		Group("categories.id, categories.name").
+		Order("categories.name ASC")
+
+	err = query.Scan(&results).Error
+	if err != nil {
+		logger.ErrorF("error getting category graph data: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error getting category graph data")
+		return
+	}
+
+	var grandTotal float64
+	for _, result := range results {
+		grandTotal += result.Total
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Category graph data retrieved successfully",
+		"data": GraphData{
+			Categories: results,
+			GrandTotal: grandTotal,
+		},
 	})
 }

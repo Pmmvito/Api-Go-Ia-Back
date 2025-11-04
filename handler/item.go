@@ -8,7 +8,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GET /items - Lista todos os itens de recibos do usuário autenticado
+// UpdateItemRequest define a estrutura para atualizar um item de recibo.
+// Todos os campos são ponteiros para permitir atualizações parciais.
+type UpdateItemRequest struct {
+	CategoryID *uint    `json:"categoryId"`
+	ProductID  *uint    `json:"productId"`
+	Quantity   *float64 `json:"quantity"`
+	UnitPrice  *float64 `json:"unitPrice"`
+	Total      *float64 `json:"total"`
+}
+
+// GetItemsHandler lida com a requisição para listar todos os itens de recibos do usuário autenticado.
 // @Summary Listar todos os itens
 // @Description Lista todos os itens de recibos do usuário autenticado
 // @Tags items
@@ -19,12 +29,12 @@ import (
 func GetItemsHandler(ctx *gin.Context) {
 	userID, _ := ctx.Get("user_id")
 	var items []schemas.ReceiptItem
-	// usa variável global db
+	// Utiliza a conexão de banco de dados global 'db'
 	db.Joins("JOIN receipts ON receipts.id = receipt_items.receipt_id").Where("receipts.user_id = ?", userID).Find(&items)
 	ctx.JSON(http.StatusOK, items)
 }
 
-// GET /item/:id - Busca item por ID
+// GetItemByIDHandler lida com a requisição para buscar um item de recibo pelo seu ID.
 // @Summary Buscar item por ID
 // @Description Busca um item pelo ID
 // @Tags items
@@ -37,7 +47,7 @@ func GetItemsHandler(ctx *gin.Context) {
 func GetItemByIDHandler(ctx *gin.Context) {
 	id := ctx.Param("id")
 	var item schemas.ReceiptItem
-	// usa variável global db
+	// Utiliza a conexão de banco de dados global 'db'
 	if err := db.Where("id = ?", id).First(&item).Error; err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Item não encontrado"})
 		return
@@ -45,7 +55,7 @@ func GetItemByIDHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, item)
 }
 
-// GET /items/date/:date - Lista itens por data de recibo
+// GetItemsByDateHandler lida com a requisição para listar itens de recibos do usuário autenticado por uma data específica.
 // @Summary Listar itens por data de recibo
 // @Description Lista itens de recibos do usuário autenticado por data de recibo
 // @Tags items
@@ -58,22 +68,10 @@ func GetItemsByDateHandler(ctx *gin.Context) {
 	userID, _ := ctx.Get("user_id")
 	date := ctx.Param("date")
 	var items []schemas.ReceiptItem
-	// usa variável global db
+	// Utiliza a conexão de banco de dados global 'db'
 	db.Joins("JOIN receipts ON receipts.id = receipt_items.receipt_id").Where("receipts.user_id = ? AND receipts.date = ?", userID, date).Find(&items)
 	ctx.JSON(http.StatusOK, items)
 }
-
-// GET /item/:id/date/:date - Busca item por ID e data de recibo
-// @Summary Buscar item por ID e data de recibo
-// @Description Busca item por ID e data de recibo
-// @Tags items
-// @Produce json
-// @Security BearerAuth
-// @Param id path int true "ID do item"
-// @Param date path string true "Data (YYYY-MM-DD)"
-// @Success 200 {object} schemas.ReceiptItemResponse
-// @Failure 404 {object} map[string]string
-// @Router /item/{id}/date/{date} [get]
 
 // GetItemsByPeriodHandler busca itens por período de recibos do usuário autenticado
 // @Summary Listar itens por período
@@ -112,4 +110,97 @@ func GetItemsByPeriodHandler(ctx *gin.Context) {
 	var items []schemas.ReceiptItem
 	db.Joins("JOIN receipts ON receipts.id = receipt_items.receipt_id").Where("receipts.user_id = ? AND receipts.date >= ? AND receipts.date < ?", userID, start, end).Find(&items)
 	ctx.JSON(http.StatusOK, items)
+}
+
+// @Summary Update an item
+// @Description Update an existing receipt item. All fields are optional.
+// @Tags items
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Item ID"
+// @Param request body UpdateItemRequest true "Item data to update"
+// @Success 200 {object} schemas.ReceiptItemResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /item/{id} [patch]
+func UpdateItemHandler(ctx *gin.Context) {
+	id := ctx.Param("id")
+	if id == "" {
+		sendError(ctx, http.StatusBadRequest, "Item ID is required")
+		return
+	}
+
+	var request UpdateItemRequest
+	if err := ctx.ShouldBindJSON(&request); err != nil {
+		logger.ErrorF("validation error: %v", err.Error())
+		sendError(ctx, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var item schemas.ReceiptItem
+	if err := db.First(&item, id).Error; err != nil {
+		sendError(ctx, http.StatusNotFound, "Item not found")
+		return
+	}
+
+	// Atualiza apenas os campos fornecidos
+	if request.CategoryID != nil {
+		item.CategoryID = *request.CategoryID
+	}
+	if request.ProductID != nil {
+		item.ProductID = *request.ProductID
+	}
+	if request.Quantity != nil {
+		item.Quantity = *request.Quantity
+	}
+	if request.UnitPrice != nil {
+		item.UnitPrice = *request.UnitPrice
+	}
+	if request.Total != nil {
+		item.Total = *request.Total
+	}
+
+	if err := db.Save(&item).Error; err != nil {
+		logger.ErrorF("error updating item: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error updating item")
+		return
+	}
+
+	ctx.JSON(http.StatusOK, item.ToResponse())
+}
+
+// @Summary Delete an item
+// @Description Delete an existing receipt item by its ID.
+// @Tags items
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Item ID"
+// @Success 200 {object} map[string]string
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /item/{id} [delete]
+func DeleteItemHandler(ctx *gin.Context) {
+	id := ctx.Param("id")
+	if id == "" {
+		sendError(ctx, http.StatusBadRequest, "Item ID is required")
+		return
+	}
+
+	var item schemas.ReceiptItem
+	if err := db.First(&item, id).Error; err != nil {
+		sendError(ctx, http.StatusNotFound, "Item not found")
+		return
+	}
+
+	if err := db.Delete(&item).Error; err != nil {
+		logger.ErrorF("error deleting item: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error deleting item")
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "Item deleted successfully"})
 }
