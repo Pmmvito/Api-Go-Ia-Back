@@ -29,7 +29,7 @@ jobs:
           command_timeout: 10m
 
           script: |
-            set -e  # Para execução se houver erro
+            # Não usa set -e para permitir tratamento de erros customizado
             
             echo "================================================"
             echo "🔍 ETAPA 1: Verificando ambiente"
@@ -107,26 +107,30 @@ jobs:
               echo "⚠️ sudo não disponível ou serviço não gerenciado por systemd"
               echo "🔄 Tentando reiniciar manualmente..."
               
-              # Mata processo existente
-              pkill -f "api-go-ia" || echo "Nenhum processo anterior encontrado"
+              # Mata processo existente (ignora erro se não existir)
+              echo "🛑 Parando processos existentes..."
+              pkill -f "api-go-ia" 2>/dev/null || echo "   Nenhum processo anterior encontrado"
               
-              # Aguarda um pouco
+              # Aguarda um pouco para garantir que o processo terminou
               sleep 2
               
               # Inicia novo processo em background
+              echo "▶️ Iniciando novo processo..."
               nohup ./api-go-ia > /tmp/api-go-ia.log 2>&1 &
+              NEW_PID=$!
               
-              echo "✅ Processo iniciado manualmente (PID: $!)"
-              echo "⏳ Aguardando 3 segundos..."
+              echo "✅ Processo iniciado (PID: $NEW_PID)"
+              echo "⏳ Aguardando 3 segundos para validação..."
               sleep 3
               
               # Verifica se o processo está rodando
               if pgrep -f "api-go-ia" > /dev/null; then
                 echo "✅ Processo está rodando"
+                ps aux | grep -E "api-go-ia|PID" | grep -v grep
               else
                 echo "❌ ERRO: Processo não iniciou"
-                echo "📋 Últimas linhas do log:"
-                tail -n 20 /tmp/api-go-ia.log || echo "Log não disponível"
+                echo "📋 Últimas 30 linhas do log:"
+                tail -n 30 /tmp/api-go-ia.log 2>/dev/null || echo "Log não disponível"
                 exit 1
               fi
             fi
