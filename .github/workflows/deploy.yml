@@ -89,29 +89,72 @@ jobs:
             echo "================================================"
             echo "🔄 ETAPA 7: Reiniciando o serviço"
             echo "================================================"
-            echo "⏸️ Parando serviço..."
-            sudo systemctl stop api-go-ia.service || echo "⚠️ Serviço já estava parado"
             
-            echo "▶️ Iniciando serviço..."
-            sudo systemctl start api-go-ia.service
-            
-            echo "⏳ Aguardando 3 segundos..."
-            sleep 3
-            
-            echo "🔍 Verificando status do serviço..."
-            sudo systemctl status api-go-ia.service --no-pager || true
+            # Tenta parar o serviço com sudo (se disponível)
+            echo "⏸️ Tentando parar serviço..."
+            if command -v sudo &> /dev/null && sudo -n systemctl stop api-go-ia.service 2>/dev/null; then
+              echo "✅ Serviço parado com systemctl"
+              
+              echo "▶️ Iniciando serviço..."
+              sudo systemctl start api-go-ia.service
+              
+              echo "⏳ Aguardando 3 segundos..."
+              sleep 3
+              
+              echo "🔍 Verificando status do serviço..."
+              sudo systemctl status api-go-ia.service --no-pager || true
+            else
+              echo "⚠️ sudo não disponível ou serviço não gerenciado por systemd"
+              echo "🔄 Tentando reiniciar manualmente..."
+              
+              # Mata processo existente
+              pkill -f "api-go-ia" || echo "Nenhum processo anterior encontrado"
+              
+              # Aguarda um pouco
+              sleep 2
+              
+              # Inicia novo processo em background
+              nohup ./api-go-ia > /tmp/api-go-ia.log 2>&1 &
+              
+              echo "✅ Processo iniciado manualmente (PID: $!)"
+              echo "⏳ Aguardando 3 segundos..."
+              sleep 3
+              
+              # Verifica se o processo está rodando
+              if pgrep -f "api-go-ia" > /dev/null; then
+                echo "✅ Processo está rodando"
+              else
+                echo "❌ ERRO: Processo não iniciou"
+                echo "📋 Últimas linhas do log:"
+                tail -n 20 /tmp/api-go-ia.log || echo "Log não disponível"
+                exit 1
+              fi
+            fi
             
             echo ""
             echo "================================================"
             echo "✅ ETAPA 8: Validação final"
             echo "================================================"
-            if sudo systemctl is-active --quiet api-go-ia.service; then
-              echo "✅ Serviço está ATIVO"
+            
+            # Verifica se systemctl está disponível com sudo
+            if command -v sudo &> /dev/null && sudo -n systemctl is-active --quiet api-go-ia.service 2>/dev/null; then
+              echo "✅ Serviço systemd está ATIVO"
+              echo "🎉 Deploy concluído com SUCESSO!"
+            elif pgrep -f "api-go-ia" > /dev/null; then
+              echo "✅ Processo manual está RODANDO"
+              echo "📊 Processos ativos:"
+              ps aux | grep api-go-ia | grep -v grep || true
               echo "🎉 Deploy concluído com SUCESSO!"
             else
-              echo "❌ ERRO: Serviço NÃO está ativo"
-              echo "📋 Últimas 20 linhas do log:"
-              sudo journalctl -u api-go-ia.service -n 20 --no-pager
+              echo "❌ ERRO: Serviço/Processo NÃO está ativo"
+              echo "📋 Tentando obter logs..."
+              if [ -f /tmp/api-go-ia.log ]; then
+                echo "Log manual:"
+                tail -n 30 /tmp/api-go-ia.log
+              fi
+              if command -v sudo &> /dev/null; then
+                sudo journalctl -u api-go-ia.service -n 20 --no-pager 2>/dev/null || true
+              fi
               exit 1
             fi
             
