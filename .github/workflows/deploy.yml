@@ -4,35 +4,127 @@ on:
   push:
     branches:
       - main  # Ou a branch que você usa
+  workflow_dispatch:  # Permite execução manual
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
-      - name: 🚚 Conectar via SSH e fazer Deploy
+      - name: 📋 Informações do Deploy
+        run: |
+          echo "🚀 Iniciando deploy da API Go"
+          echo "📦 Commit: ${{ github.sha }}"
+          echo "� Autor: ${{ github.actor }}"
+          echo "📝 Mensagem: ${{ github.event.head_commit.message }}"
+          echo "⏰ Data: $(date)"
+
+      - name: �🚚 Conectar via SSH e fazer Deploy
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 10m
+          script_stop: true  # Para execução se algum comando falhar
 
           script: |
-            # 1. Navegue até a pasta do projeto
+            set -e  # Para execução se houver erro
+            
+            echo "================================================"
+            echo "🔍 ETAPA 1: Verificando ambiente"
+            echo "================================================"
+            echo "📂 Diretório atual: $(pwd)"
+            echo "👤 Usuário: $(whoami)"
+            echo "🐹 Versão Go: $(go version)"
+            
+            echo ""
+            echo "================================================"
+            echo "📁 ETAPA 2: Navegando para o projeto"
+            echo "================================================"
             cd /DATA/Downloads/Api-Go-Ia-Back
-
-            # 2. Puxe as últimas alterações
+            echo "✅ Diretório do projeto: $(pwd)"
+            
+            echo ""
+            echo "================================================"
+            echo "📥 ETAPA 3: Atualizando código do repositório"
+            echo "================================================"
+            echo "🔄 Branch atual: $(git branch --show-current)"
+            echo "📌 Commit atual (antes): $(git rev-parse --short HEAD)"
             git pull origin main
-
-            # 3. Baixe dependências
+            echo "📌 Commit atual (depois): $(git rev-parse --short HEAD)"
+            echo "✅ Código atualizado com sucesso"
+            
+            echo ""
+            echo "================================================"
+            echo "📦 ETAPA 4: Gerenciando dependências"
+            echo "================================================"
             go mod tidy
+            echo "✅ Dependências verificadas"
+            
+            echo ""
+            echo "================================================"
+            echo "🔨 ETAPA 5: Compilando a aplicação"
+            echo "================================================"
+            echo "🏗️ Iniciando compilação..."
+            go build -v -o api-go-ia main.go
+            echo "✅ Compilação concluída com sucesso"
+            
+            echo ""
+            echo "================================================"
+            echo "📊 ETAPA 6: Verificando binário"
+            echo "================================================"
+            ls -lh api-go-ia
+            echo "✅ Binário verificado"
+            
+            echo ""
+            echo "================================================"
+            echo "🔄 ETAPA 7: Reiniciando o serviço"
+            echo "================================================"
+            echo "⏸️ Parando serviço..."
+            sudo systemctl stop api-go-ia.service || echo "⚠️ Serviço já estava parado"
+            
+            echo "▶️ Iniciando serviço..."
+            sudo systemctl start api-go-ia.service
+            
+            echo "⏳ Aguardando 3 segundos..."
+            sleep 3
+            
+            echo "🔍 Verificando status do serviço..."
+            sudo systemctl status api-go-ia.service --no-pager || true
+            
+            echo ""
+            echo "================================================"
+            echo "✅ ETAPA 8: Validação final"
+            echo "================================================"
+            if sudo systemctl is-active --quiet api-go-ia.service; then
+              echo "✅ Serviço está ATIVO"
+              echo "🎉 Deploy concluído com SUCESSO!"
+            else
+              echo "❌ ERRO: Serviço NÃO está ativo"
+              echo "📋 Últimas 20 linhas do log:"
+              sudo journalctl -u api-go-ia.service -n 20 --no-pager
+              exit 1
+            fi
+            
+            echo ""
+            echo "================================================"
+            echo "� RESUMO DO DEPLOY"
+            echo "================================================"
+            echo "✅ Commit: $(git rev-parse --short HEAD)"
+            echo "✅ Data: $(date)"
+            echo "✅ Status: SUCCESS"
+            echo "================================================"
 
-            # 5. Compile o novo binário
-            echo "Compilando a aplicação Go..."
-            go build -o api-go-ia main.go
+      - name: ✅ Deploy Concluído
+        if: success()
+        run: |
+          echo "🎉 Deploy realizado com sucesso!"
+          echo "🌐 API disponível em: http://${{ secrets.SERVER_HOST }}:61489"
 
-            # 6. Reinicie o serviço systemd
-            echo "Reiniciando o serviço..."
-            sudo systemctl restart api-go-ia.service
-
-            echo "🚀 Deploy finalizado!"
+      - name: ❌ Deploy Falhou
+        if: failure()
+        run: |
+          echo "❌ Deploy falhou! Verifique os logs acima."
+          exit 1
