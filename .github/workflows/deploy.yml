@@ -107,30 +107,46 @@ jobs:
               echo "⚠️ sudo não disponível ou serviço não gerenciado por systemd"
               echo "🔄 Tentando reiniciar manualmente..."
               
-              # Mata processo existente (ignora erro se não existir)
+              # Mata processo existente usando PID file se existir
               echo "🛑 Parando processos existentes..."
-              pkill -f "api-go-ia" 2>/dev/null || echo "   Nenhum processo anterior encontrado"
+              if [ -f /tmp/api-go-ia.pid ]; then
+                OLD_PID=$(cat /tmp/api-go-ia.pid)
+                if kill -0 $OLD_PID 2>/dev/null; then
+                  echo "   Matando processo PID: $OLD_PID"
+                  kill -9 $OLD_PID 2>/dev/null || true
+                  sleep 1
+                fi
+                rm -f /tmp/api-go-ia.pid
+              fi
               
-              # Aguarda um pouco para garantir que o processo terminou
-              sleep 2
+              # Fallback: mata qualquer processo api-go-ia (exceto grep)
+              if pgrep -f "./api-go-ia" > /dev/null 2>&1; then
+                echo "   Matando processos restantes..."
+                pkill -9 -f "./api-go-ia" 2>/dev/null || true
+                sleep 2
+              else
+                echo "   Nenhum processo anterior encontrado"
+              fi
               
               # Inicia novo processo em background
               echo "▶️ Iniciando novo processo..."
               nohup ./api-go-ia > /tmp/api-go-ia.log 2>&1 &
               NEW_PID=$!
+              echo $NEW_PID > /tmp/api-go-ia.pid
               
               echo "✅ Processo iniciado (PID: $NEW_PID)"
-              echo "⏳ Aguardando 3 segundos para validação..."
-              sleep 3
+              echo "⏳ Aguardando 5 segundos para validação..."
+              sleep 5
               
               # Verifica se o processo está rodando
-              if pgrep -f "api-go-ia" > /dev/null; then
+              if kill -0 $NEW_PID 2>/dev/null; then
                 echo "✅ Processo está rodando"
-                ps aux | grep -E "api-go-ia|PID" | grep -v grep
+                echo "📊 Informações do processo:"
+                ps -p $NEW_PID -o pid,ppid,cmd,etime 2>/dev/null || true
               else
-                echo "❌ ERRO: Processo não iniciou"
-                echo "📋 Últimas 30 linhas do log:"
-                tail -n 30 /tmp/api-go-ia.log 2>/dev/null || echo "Log não disponível"
+                echo "❌ ERRO: Processo não está rodando"
+                echo "📋 Últimas 50 linhas do log:"
+                tail -n 50 /tmp/api-go-ia.log 2>/dev/null || echo "Log não disponível"
                 exit 1
               fi
             fi
@@ -144,21 +160,23 @@ jobs:
             if command -v sudo &> /dev/null && sudo -n systemctl is-active --quiet api-go-ia.service 2>/dev/null; then
               echo "✅ Serviço systemd está ATIVO"
               echo "🎉 Deploy concluído com SUCESSO!"
-            elif pgrep -f "api-go-ia" > /dev/null; then
-              echo "✅ Processo manual está RODANDO"
-              echo "📊 Processos ativos:"
-              ps aux | grep api-go-ia | grep -v grep || true
-              echo "🎉 Deploy concluído com SUCESSO!"
+            elif [ -f /tmp/api-go-ia.pid ]; then
+              PID=$(cat /tmp/api-go-ia.pid)
+              if kill -0 $PID 2>/dev/null; then
+                echo "✅ Processo manual está RODANDO (PID: $PID)"
+                echo "📊 Processos ativos:"
+                ps -p $PID -o pid,ppid,cmd,etime 2>/dev/null || true
+                echo "🎉 Deploy concluído com SUCESSO!"
+              else
+                echo "❌ ERRO: Processo do PID file não está ativo"
+                echo "📋 Tentando obter logs..."
+                tail -n 50 /tmp/api-go-ia.log 2>/dev/null || echo "Log não disponível"
+                exit 1
+              fi
             else
-              echo "❌ ERRO: Serviço/Processo NÃO está ativo"
+              echo "❌ ERRO: Nem systemd nem processo manual detectado"
               echo "📋 Tentando obter logs..."
-              if [ -f /tmp/api-go-ia.log ]; then
-                echo "Log manual:"
-                tail -n 30 /tmp/api-go-ia.log
-              fi
-              if command -v sudo &> /dev/null; then
-                sudo journalctl -u api-go-ia.service -n 20 --no-pager 2>/dev/null || true
-              fi
+              tail -n 50 /tmp/api-go-ia.log 2>/dev/null || echo "Log não disponível"
               exit 1
             fi
             
