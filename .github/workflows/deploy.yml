@@ -138,6 +138,14 @@ jobs:
               echo "⏳ Aguardando 5 segundos para validação..."
               sleep 5
               
+              # Mostra as primeiras linhas do log
+              echo ""
+              echo "📋 Primeiras linhas do log da aplicação:"
+              echo "----------------------------------------"
+              head -n 20 /tmp/api-go-ia.log 2>/dev/null || echo "Log ainda não disponível"
+              echo "----------------------------------------"
+              echo ""
+              
               # Verifica se o processo está rodando
               if kill -0 $NEW_PID 2>/dev/null; then
                 echo "✅ Processo está rodando"
@@ -145,7 +153,7 @@ jobs:
                 ps -p $NEW_PID -o pid,ppid,cmd,etime 2>/dev/null || true
               else
                 echo "❌ ERRO: Processo não está rodando"
-                echo "📋 Últimas 50 linhas do log:"
+                echo "📋 Log completo (últimas 50 linhas):"
                 tail -n 50 /tmp/api-go-ia.log 2>/dev/null || echo "Log não disponível"
                 exit 1
               fi
@@ -182,11 +190,21 @@ jobs:
             
             echo ""
             echo "================================================"
-            echo "� RESUMO DO DEPLOY"
+            echo "📊 RESUMO DO DEPLOY"
             echo "================================================"
             echo "✅ Commit: $(git rev-parse --short HEAD)"
             echo "✅ Data: $(date)"
             echo "✅ Status: SUCCESS"
+            
+            # Mostra últimas linhas do log da aplicação
+            if [ -f /tmp/api-go-ia.log ]; then
+              echo ""
+              echo "📋 Últimas 10 linhas do log da aplicação:"
+              echo "----------------------------------------"
+              tail -n 10 /tmp/api-go-ia.log 2>/dev/null || true
+              echo "----------------------------------------"
+            fi
+            
             echo "================================================"
 
       - name: ✅ Deploy Concluído
