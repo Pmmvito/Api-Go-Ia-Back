@@ -286,6 +286,10 @@ definitions:
         type: string
       id:
         type: integer
+      product:
+        allOf:
+        - $ref: '#/definitions/schemas.ProductSimple'
+        description: Nome e unidade do produto
       productId:
         type: integer
       quantity:

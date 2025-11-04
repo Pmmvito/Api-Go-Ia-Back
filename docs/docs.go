@@ -1913,6 +1913,14 @@ const docTemplate = `{
                 "id": {
                     "type": "integer"
                 },
+                "product": {
+                    "description": "Nome e unidade do produto",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/schemas.ProductSimple"
+                        }
+                    ]
+                },
                 "productId": {
                     "type": "integer"
                 },

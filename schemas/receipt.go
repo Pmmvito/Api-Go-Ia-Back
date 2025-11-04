@@ -94,6 +94,7 @@ type ReceiptItemResponse struct {
 	CategoryID uint            `json:"categoryId"`
 	Category   *CategorySimple `json:"category,omitempty"` // Apenas ID e Nome
 	ProductID  uint            `json:"productId"`
+	Product    *ProductSimple  `json:"product,omitempty"`  // Nome e unidade do produto
 	Quantity   float64         `json:"quantity"`
 	UnitPrice  float64         `json:"unitPrice"`
 	Total      float64         `json:"total"`
@@ -197,6 +198,15 @@ func (r *Receipt) ToResponse() ReceiptResponse {
 			}
 		}
 
+		// Adiciona produto se existir (APENAS ID, Nome e Unidade)
+		if item.Product != nil {
+			itemResponse.Product = &ProductSimple{
+				ID:    item.Product.ID,
+				Name:  item.Product.Name,
+				Unity: item.Product.Unity,
+			}
+		}
+
 		items[i] = itemResponse
 	}
 
@@ -236,6 +246,15 @@ func (item *ReceiptItem) ToResponse() ReceiptItemResponse {
 		itemResponse.Category = &CategorySimple{
 			ID:   item.Category.ID,
 			Name: item.Category.Name,
+		}
+	}
+
+	// Adiciona produto se existir (APENAS ID, Nome e Unidade)
+	if item.Product != nil {
+		itemResponse.Product = &ProductSimple{
+			ID:    item.Product.ID,
+			Name:  item.Product.Name,
+			Unity: item.Product.Unity,
 		}
 	}
 
