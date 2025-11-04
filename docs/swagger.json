@@ -990,7 +990,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/schemas.ReceiptResponse"
+                            "$ref": "#/definitions/schemas.ReceiptSummary"
                         }
                     },
                     "404": {
@@ -1099,7 +1099,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/schemas.ReceiptResponse"
+                            "$ref": "#/definitions/schemas.ReceiptSummary"
                         }
                     },
                     "400": {
@@ -1971,53 +1971,6 @@
                 },
                 "unitPrice": {
                     "type": "number"
-                }
-            }
-        },
-        "schemas.ReceiptResponse": {
-            "type": "object",
-            "properties": {
-                "confidence": {
-                    "type": "number"
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "currency": {
-                    "type": "string"
-                },
-                "date": {
-                    "type": "string"
-                },
-                "discount": {
-                    "type": "number"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/schemas.ReceiptItemResponse"
-                    }
-                },
-                "notes": {
-                    "type": "string"
-                },
-                "storeName": {
-                    "type": "string"
-                },
-                "subtotal": {
-                    "type": "number"
-                },
-                "total": {
-                    "type": "number"
-                },
-                "updatedAt": {
-                    "type": "string"
-                },
-                "userId": {
-                    "type": "integer"
                 }
             }
         },

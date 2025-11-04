@@ -326,37 +326,6 @@ definitions:
       unitPrice:
         type: number
     type: object
-  schemas.ReceiptResponse:
-    properties:
-      confidence:
-        type: number
-      createdAt:
-        type: string
-      currency:
-        type: string
-      date:
-        type: string
-      discount:
-        type: number
-      id:
-        type: integer
-      items:
-        items:
-          $ref: '#/definitions/schemas.ReceiptItemResponse'
-        type: array
-      notes:
-        type: string
-      storeName:
-        type: string
-      subtotal:
-        type: number
-      total:
-        type: number
-      updatedAt:
-        type: string
-      userId:
-        type: integer
-    type: object
   schemas.ReceiptSummary:
     properties:
       currency:
@@ -1080,7 +1049,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/schemas.ReceiptResponse'
+            $ref: '#/definitions/schemas.ReceiptSummary'
         "404":
           description: Not Found
           schema:
@@ -1114,7 +1083,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/schemas.ReceiptResponse'
+            $ref: '#/definitions/schemas.ReceiptSummary'
         "400":
           description: Bad Request
           schema:

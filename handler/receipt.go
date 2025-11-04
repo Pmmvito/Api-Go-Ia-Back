@@ -121,7 +121,7 @@ func DeleteReceiptHandler(ctx *gin.Context) {
 // @Security BearerAuth
 // @Param id path int true "Receipt ID"
 // @Param request body UpdateReceiptRequest true "Receipt data to update"
-// @Success 200 {object} schemas.ReceiptResponse
+// @Success 200 {object} schemas.ReceiptSummary
 // @Failure 400 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
@@ -169,7 +169,12 @@ func UpdateReceiptHandler(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, receipt.ToResponse())
+	// Recarrega o receipt com os relacionamentos para retornar o summary completo
+	db.Preload("Items", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id ASC")
+	}).Preload("Items.Category").Preload("Items.Product").First(&receipt, id)
+
+	ctx.JSON(http.StatusOK, receipt.ToSummary())
 }
 
 // GetReceiptsBasicByPeriodHandler lista recibos básicos por período
@@ -261,7 +266,7 @@ func GetReceiptsBasicByDateHandler(ctx *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param id path int true "ID do recibo"
-// @Success 200 {object} schemas.ReceiptResponse
+// @Success 200 {object} schemas.ReceiptSummary
 // @Failure 404 {object} map[string]string
 // @Router /receipt/{id} [get]
 func GetReceiptByIDHandler(ctx *gin.Context) {
@@ -275,7 +280,7 @@ func GetReceiptByIDHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Recibo não encontrado"})
 		return
 	}
-	ctx.JSON(http.StatusOK, receipt.ToResponse())
+	ctx.JSON(http.StatusOK, receipt.ToSummary())
 }
 
 // GetReceiptsByDateHandler busca recibos por data específica
