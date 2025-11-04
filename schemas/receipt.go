@@ -52,7 +52,7 @@ type ReceiptItemSummary struct {
 	CategoryID uint            `json:"categoryId"`
 	Category   *CategorySimple `json:"category,omitempty"` // Apenas ID e Nome
 	ProductID  uint            `json:"productId"`
-	Product    *ProductSimple  `json:"product,omitempty"`  // Nome e unidade do produto
+	Product    *ProductSimple  `json:"product,omitempty"` // Nome e unidade do produto
 	Quantity   float64         `json:"quantity"`
 	UnitPrice  float64         `json:"unitPrice"`
 	Total      float64         `json:"total"`
@@ -60,9 +60,9 @@ type ReceiptItemSummary struct {
 
 // ProductSimple fornece uma representação leve de um produto, com apenas nome e unidade.
 type ProductSimple struct {
-	ID     uint   `json:"id"`
-	Name   string `json:"name"`
-	Unity  string `json:"unity"`
+	ID    uint   `json:"id"`
+	Name  string `json:"name"`
+	Unity string `json:"unity"`
 }
 
 // ReceiptBasic fornece uma versão ultra-simplificada de um recibo para listagens rápidas.
@@ -77,12 +77,12 @@ type ReceiptBasic struct {
 
 // ReceiptSummary fornece uma versão leve de um recibo para listagens.
 type ReceiptSummary struct {
-	ID        uint                  `json:"id"`
-	StoreName string                `json:"storeName"`
-	Date      string                `json:"date"`
-	Items     []ReceiptItemSummary  `json:"items"`
-	Total     float64               `json:"total"`
-	Currency  string                `json:"currency"`
+	ID        uint                 `json:"id"`
+	StoreName string               `json:"storeName"`
+	Date      string               `json:"date"`
+	Items     []ReceiptItemSummary `json:"items"`
+	Total     float64              `json:"total"`
+	Currency  string               `json:"currency"`
 }
 
 // ReceiptItemResponse define a estrutura de um item de recibo nas respostas da API, excluindo gorm.Model para o Swagger.
@@ -94,7 +94,7 @@ type ReceiptItemResponse struct {
 	CategoryID uint            `json:"categoryId"`
 	Category   *CategorySimple `json:"category,omitempty"` // Apenas ID e Nome
 	ProductID  uint            `json:"productId"`
-	Product    *ProductSimple  `json:"product,omitempty"`  // Nome e unidade do produto
+	Product    *ProductSimple  `json:"product,omitempty"` // Nome e unidade do produto
 	Quantity   float64         `json:"quantity"`
 	UnitPrice  float64         `json:"unitPrice"`
 	Total      float64         `json:"total"`
