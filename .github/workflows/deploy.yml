@@ -20,14 +20,13 @@ jobs:
           echo "📝 Mensagem: ${{ github.event.head_commit.message }}"
           echo "⏰ Data: $(date)"
 
-      - name: �🚚 Conectar via SSH e fazer Deploy
+      - name:  Conectar via SSH e fazer Deploy
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 10m
-          script_stop: true  # Para execução se algum comando falhar
 
           script: |
             set -e  # Para execução se houver erro
@@ -52,7 +51,15 @@ jobs:
             echo "================================================"
             echo "🔄 Branch atual: $(git branch --show-current)"
             echo "📌 Commit atual (antes): $(git rev-parse --short HEAD)"
-            git pull origin main
+            
+            # Verifica se há mudanças locais
+            if ! git diff-index --quiet HEAD --; then
+              echo "⚠️ Detectadas mudanças locais, fazendo stash..."
+              git stash save "Auto-stash antes do deploy $(date)"
+            fi
+            
+            git fetch origin main
+            git reset --hard origin/main
             echo "📌 Commit atual (depois): $(git rev-parse --short HEAD)"
             echo "✅ Código atualizado com sucesso"
             
