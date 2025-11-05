@@ -101,6 +101,13 @@ func RegisterHandler(ctx *gin.Context) {
 		return
 	}
 
+	// 🔒 NOVO: Salva token no usuário
+	user.ActiveToken = &token
+	if err := db.Save(&user).Error; err != nil {
+		logger.ErrorF("error saving active token: %v", err.Error())
+		// Não falha o registro por isso, apenas loga
+	}
+
 	// Retorna resposta
 	ctx.JSON(http.StatusCreated, AuthResponse{
 		Message: "User registered successfully",
@@ -141,12 +148,32 @@ func LoginHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Gera token JWT
+	// 🔒 NOVO: Invalida token anterior se existir
+	if user.ActiveToken != nil && *user.ActiveToken != "" {
+		logger.InfoF("Invalidating previous token for user %d", user.ID)
+		
+		// Adiciona token anterior à blacklist
+		expiresAt := time.Now().Add(time.Hour * 24 * 7) // Mesmo TTL do token
+		db.Create(&schemas.TokenBlacklist{
+			UserID:    user.ID,
+			Token:     *user.ActiveToken,
+			ExpiresAt: expiresAt,
+		})
+	}
+
+	// Gera novo token JWT
 	token, err := GenerateJWT(user.ID)
 	if err != nil {
 		logger.ErrorF("error generating token: %v", err.Error())
 		sendError(ctx, http.StatusInternalServerError, "Error generating authentication token")
 		return
+	}
+
+	// 🔒 NOVO: Salva novo token no usuário
+	user.ActiveToken = &token
+	if err := db.Save(&user).Error; err != nil {
+		logger.ErrorF("error saving active token: %v", err.Error())
+		// Não falha o login por isso, apenas loga
 	}
 
 	// Retorna resposta

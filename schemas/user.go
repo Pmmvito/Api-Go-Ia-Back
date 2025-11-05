@@ -13,6 +13,7 @@ type User struct {
 	Name          string         `gorm:"not null"`
 	Email         string         `gorm:"unique;not null;index"`
 	Password      string         `gorm:"not null"`
+	ActiveToken   *string        `gorm:"type:text" json:"-"`                             // Token JWT ativo atual (null após logout)
 	Receipts      []Receipt      `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"` // Relacionamento HasMany com Receipts
 	ShoppingLists []ShoppingList `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"` // Relacionamento HasMany com ShoppingLists
 }

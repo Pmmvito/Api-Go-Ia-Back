@@ -62,6 +62,12 @@ func LogoutHandler(ctx *gin.Context) {
 		return
 	}
 
+	// 🔒 NOVO: Limpa o active_token do usuário
+	if err := db.Model(&schemas.User{}).Where("id = ?", userID).Update("active_token", nil).Error; err != nil {
+		logger.ErrorF("Erro ao limpar active_token: %v", err)
+		// Não falha o logout por isso, já adicionou na blacklist
+	}
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"message": "Logout realizado com sucesso",
 	})
