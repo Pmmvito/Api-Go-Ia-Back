@@ -30,6 +30,7 @@ jobs:
 
           script: |
             # 1. Navegue até a pasta do projeto
+            echo "📁 Navegando para /DATA/Downloads/Api-Go-Ia-Back"
             cd /DATA/Downloads/Api-Go-Ia-Back
             
             # 2. Puxe as últimas alterações
@@ -38,15 +39,25 @@ jobs:
             git reset --hard origin/main
             
             # 3. Baixe dependências
-            echo "📦 Baixando dependências..."
+            echo "📦 Baixando dependências (go mod tidy)..."
             go mod tidy
             
             # 4. Compile o novo binário
-            echo "🔨 Compilando a aplicação Go..."
+            echo "🔨 Compilando a aplicação (go build)..."
             go build -o api-go-ia main.go
             
-            # 5. Reinicie o serviço (systemd faz todo o trabalho)
-            echo "▶️ Reiniciando o serviço..."
+            # 5. Reinicie o serviço (O Systemd cuida de parar o antigo e iniciar o novo)
+            echo "▶️ Reiniciando o serviço (systemctl restart)..."
             sudo systemctl restart api-go-ia.service
             
-            echo "🎉 Deploy finalizado!"
+            echo "🎉 Deploy finalizado com sucesso!"
+
+      - name: ✅ Deploy Concluído
+        if: success()
+        run: echo "🎉 Deploy realizado com sucesso!"
+
+      - name: ❌ Deploy Falhou
+        if: failure()
+        run: |
+          echo "❌ Deploy falhou! Verifique os logs."
+          exit 1
