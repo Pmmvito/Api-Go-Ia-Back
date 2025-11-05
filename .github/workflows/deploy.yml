@@ -29,209 +29,24 @@ jobs:
           command_timeout: 10m
 
           script: |
-            # Não usar set -e pois pkill retorna erro quando mata processos
-            
-            echo "================================================"
-            echo "🔍 ETAPA 1: Verificando ambiente"
-            echo "================================================"
-            echo "📂 Diretório atual: $(pwd)"
-            echo "👤 Usuário: $(whoami)"
-            echo "🐹 Versão Go: $(go version)"
-            
-            echo ""
-            echo "================================================"
-            echo "📁 ETAPA 2: Navegando para o projeto"
-            echo "================================================"
+            # 1. Navegue até a pasta do projeto
             cd /DATA/Downloads/Api-Go-Ia-Back
-            echo "✅ Diretório do projeto: $(pwd)"
             
-            echo ""
-            echo "================================================"
-            echo "⏸️ ETAPA 3: Parando processos antigos"
-            echo "================================================"
-            
-            # Lista processos antes de parar
-            if pgrep -f "api-go-ia" > /dev/null; then
-              echo " Processos encontrados: `$(pgrep -f api-go-ia | tr '\n' ' ')"
-              echo " Enviando SIGTERM..."
-              pkill -15 -f "api-go-ia" 2>/dev/null || true
-              sleep 3
-              if pgrep -f "api-go-ia" > /dev/null; then
-                echo " Alguns processos ainda ativos, continuando deploy..."
-              fi
-            else
-              echo " Nenhum processo encontrado"
-            fi
-            echo " Prosseguindo..."
-            
-            echo ""
-            echo "================================================"
-            echo "📥 ETAPA 4: Atualizando código do repositório"
-            echo "================================================"
-            echo "🔄 Branch atual: $(git branch --show-current)"
-            echo "📌 Commit local (antes): $(git rev-parse --short HEAD)"
-            echo "📌 Commit remoto: $(git ls-remote origin main | cut -f1 | cut -c1-7)"
-            
-            # Remove qualquer mudança local e atualiza
-            echo "🧹 Limpando mudanças locais..."
-            git reset --hard HEAD
-            git clean -fd
-            
+            # 2. Puxe as últimas alterações
             echo "📥 Baixando atualizações..."
-            git fetch origin main --prune
+            git fetch origin main
             git reset --hard origin/main
             
-            echo "📌 Commit local (depois): $(git rev-parse --short HEAD)"
-            echo "✅ Código atualizado com sucesso"
-            
-            # Mostra últimas mudanças
-            echo ""
-            echo "📝 Últimas mudanças:"
-            git log -1 --oneline
-            
-            echo ""
-            echo "================================================"
-            echo "🗑️ ETAPA 5: Removendo binário antigo"
-            echo "================================================"
-            if [ -f api-go-ia ]; then
-              echo "🗑️ Removendo binário antigo..."
-              rm -f api-go-ia
-              echo "✅ Binário antigo removido"
-            else
-              echo "ℹ️ Nenhum binário antigo encontrado"
-            fi
-            
-            echo ""
-            echo "================================================"
-            echo "📦 ETAPA 6: Limpando cache e atualizando dependências"
-            echo "================================================"
-            echo "🧹 Limpando cache do Go..."
-            go clean -cache -modcache -testcache 2>/dev/null || true
-            
+            # 3. Baixe dependências
             echo "📦 Baixando dependências..."
-            go mod download
             go mod tidy
-            echo "✅ Dependências atualizadas"
             
-            echo ""
-            echo "================================================"
-            echo "🔨 ETAPA 7: Compilando nova versão"
-            echo "================================================"
-            echo "🏗️ Compilando do zero..."
+            # 4. Compile o novo binário
+            echo "🔨 Compilando a aplicação Go..."
+            go build -o api-go-ia main.go
             
-            # Remove qualquer binário que possa ter sido criado
-            rm -f api-go-ia
+            # 5. Reinicie o serviço (systemd faz todo o trabalho)
+            echo "▶️ Reiniciando o serviço..."
+            sudo systemctl restart api-go-ia.service
             
-            # Compila com flags que forçam rebuild completo
-            if ! go build -a -v -o api-go-ia main.go; then
-              echo "❌ ERRO: Falha na compilação"
-              exit 1
-            fi
-            
-            echo "✅ Compilação concluída"
-            
-            echo ""
-            echo "================================================"
-            echo "📊 ETAPA 8: Verificando novo binário"
-            echo "================================================"
-            ls -lh api-go-ia
-            
-            # Verifica se o binário é executável
-            if [ -x api-go-ia ]; then
-              echo "✅ Binário executável criado"
-            else
-              echo "❌ Erro: Binário não é executável"
-              exit 1
-            fi
-            
-            # Mostra data de modificação
-            echo "📅 Data de criação: $(stat -c %y api-go-ia 2>/dev/null || stat -f %Sm api-go-ia)"
-            
-            echo ""
-            echo "================================================"
-            echo "▶️ ETAPA 9: Iniciando novo serviço"
-            echo "================================================"
-            
-            # Primeiro tenta via systemd
-            SERVICE_STARTED=false
-            
-            if command -v sudo &> /dev/null && sudo -n true 2>/dev/null; then
-              echo "▶️ Tentando iniciar via systemd (sudo)..."
-              if sudo systemctl daemon-reload && sudo systemctl start api-go-ia.service 2>&1; then
-                echo "✅ Serviço iniciado via systemd"
-                SERVICE_STARTED=true
-              else
-                echo "⚠️ Systemd não disponível, iniciando manualmente..."
-              fi
-            else
-              echo "▶️ Tentando iniciar via systemd (user)..."
-              if systemctl --user daemon-reload 2>/dev/null && systemctl --user start api-go-ia.service 2>/dev/null; then
-                echo "✅ Serviço iniciado via systemd"
-                SERVICE_STARTED=true
-              else
-                echo "⚠️ Systemd não disponível, iniciando manualmente..."
-              fi
-            fi
-            
-            # Se systemd não funcionou, inicia manualmente em background
-            if [ "$SERVICE_STARTED" = false ]; then
-              echo "🚀 Iniciando API manualmente em background..."
-              nohup ./api-go-ia > /tmp/api-go-ia.log 2>&1 &
-              echo $! > /tmp/api-go-ia.pid
-              echo "✅ API iniciada com PID: $(cat /tmp/api-go-ia.pid)"
-            fi
-            
-            echo "⏳ Aguardando API inicializar (5 segundos)..."
-            sleep 5
-            
-            echo ""
-            echo "================================================"
-            echo "🧪 ETAPA 10: Validação final"
-            echo "================================================"
-            
-            # Verifica se o processo está rodando
-            if pgrep -f "api-go-ia" > /dev/null; then
-              echo "✅ Processo da API está RODANDO"
-              echo "🔍 PID: $(pgrep -f api-go-ia)"
-            else
-              echo "❌ AVISO: Processo não encontrado"
-            fi
-            
-            # Tenta fazer uma requisição de health check (se existir)
-            echo ""
-            echo "🏥 Testando endpoint de health..."
-            if curl -f -s -o /dev/null -w "%{http_code}" http://localhost:61489/health 2>/dev/null | grep -q "200"; then
-              echo "✅ API respondendo corretamente"
-            else
-              echo "⚠️ Não foi possível verificar health (endpoint pode não existir)"
-            fi
-            
-            echo ""
-            echo "================================================"
-            echo "📊 RESUMO DO DEPLOY"
-            echo "================================================"
-            echo "✅ Commit: $(git rev-parse --short HEAD)"
-            echo "✅ Binário: $(ls -lh api-go-ia | awk '{print $5}')"
-            echo "✅ Data: $(date)"
-            echo "✅ Status: SUCCESS"
-            echo "================================================"
-            echo ""
-            echo "🎉 Deploy CONCLUÍDO com SUCESSO!"
-
-      - name: ✅ Deploy Concluído
-        if: success()
-        run: |
-          echo "🎉 Deploy realizado com sucesso!"
-          echo "🌐 API disponível em: http://${{ secrets.SERVER_HOST }}:61489"
-          echo "📝 Commit deployado: ${{ github.sha }}"
-
-      - name: ❌ Deploy Falhou
-        if: failure()
-        run: |
-          echo "❌ Deploy falhou! Verifique os logs acima."
-          echo "💡 Possíveis causas:"
-          echo "   - Erro de compilação"
-          echo "   - Serviço não iniciou"
-          echo "   - Problemas de permissão"
-          exit 1
-
+            echo "🎉 Deploy finalizado!"
