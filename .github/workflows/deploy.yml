@@ -29,7 +29,7 @@ jobs:
           command_timeout: 10m
 
           script: |
-            set -e  # Para na primeira falha
+            # Não usar set -e pois pkill retorna erro quando mata processos
             
             echo "================================================"
             echo "🔍 ETAPA 1: Verificando ambiente"
@@ -125,7 +125,10 @@ jobs:
             rm -f api-go-ia
             
             # Compila com flags que forçam rebuild completo
-            go build -a -v -o api-go-ia main.go
+            if ! go build -a -v -o api-go-ia main.go; then
+              echo "❌ ERRO: Falha na compilação"
+              exit 1
+            fi
             
             echo "✅ Compilação concluída"
             
