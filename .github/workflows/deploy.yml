@@ -52,19 +52,15 @@ jobs:
             # Para o serviço primeiro para liberar o binário
             if command -v sudo &> /dev/null && sudo -n true 2>/dev/null; then
               echo "🛑 Parando serviço com sudo..."
-              sudo systemctl stop api-go-ia.service || true
+              sudo systemctl stop api-go-ia.service 2>&1 || echo "   Serviço já parado ou não existe"
               sleep 2
             else
               echo "🛑 Parando serviço sem sudo..."
-              systemctl --user stop api-go-ia.service 2>/dev/null || true
+              systemctl --user stop api-go-ia.service 2>&1 || echo "   Serviço já parado ou não existe"
               sleep 2
             fi
             
-            # Mata qualquer processo remanescente
-            echo "🔍 Verificando processos da API..."
-            pkill -f "api-go-ia" || true
-            echo "✅ Processos finalizados"
-            sleep 1
+            echo "✅ Serviço parado"
             
             echo ""
             echo "================================================"
