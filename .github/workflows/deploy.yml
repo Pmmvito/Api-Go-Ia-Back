@@ -50,33 +50,38 @@ jobs:
             echo "⏸️ ETAPA 3: Parando processos antigos"
             echo "================================================"
             
-            # Primeiro tenta parar via systemd
-            if command -v sudo &> /dev/null && sudo -n true 2>/dev/null; then
-              echo "🛑 Tentando parar via systemd (sudo)..."
-              sudo systemctl stop api-go-ia.service 2>&1 || echo "   Serviço systemd não configurado"
-            else
-              echo "🛑 Tentando parar via systemd (user)..."
-              systemctl --user stop api-go-ia.service 2>&1 || echo "   Serviço systemd não configurado"
-            fi
+            # Cria script de parada para executar em background
+            cat > /tmp/stop-api.sh << 'EOF'
+            #!/bin/bash
+            # Para via systemd se disponível
+            systemctl --user stop api-go-ia.service 2>/dev/null || true
+            # Mata processos
+            killall -9 api-go-ia 2>/dev/null || true
+            sleep 1
+            pkill -9 -f "api-go-ia" 2>/dev/null || true
+            EOF
             
-            # Mata TODOS os processos api-go-ia em execução
-            echo "🔍 Procurando processos api-go-ia..."
+            chmod +x /tmp/stop-api.sh
+            
+            echo "� Parando processos antigos em background..."
+            nohup /tmp/stop-api.sh > /dev/null 2>&1 &
+            
+            # Aguarda um pouco para os processos serem finalizados
+            sleep 3
+            
+            # Verifica se ainda há processos
             if pgrep -f "api-go-ia" > /dev/null; then
-              echo "🛑 Matando processos antigos..."
-              killall -9 api-go-ia 2>/dev/null || true
+              echo "⚠️ Ainda há processos rodando, aguardando mais 2 segundos..."
               sleep 2
-              
-              # Verifica se ainda há processos
-              if pgrep -f "api-go-ia" > /dev/null; then
-                echo "⚠️ AVISO: Ainda há processos rodando, forçando kill..."
-                pkill -9 -f "api-go-ia" || true
-                sleep 1
-              fi
-            else
-              echo "✅ Nenhum processo encontrado"
             fi
             
-            echo "✅ Processos antigos finalizados"
+            if pgrep -f "api-go-ia" > /dev/null; then
+              echo "❌ ERRO: Não foi possível parar os processos antigos"
+              echo "PIDs restantes: $(pgrep -f api-go-ia)"
+              exit 1
+            else
+              echo "✅ Todos os processos antigos foram finalizados"
+            fi
             
             echo ""
             echo "================================================"
