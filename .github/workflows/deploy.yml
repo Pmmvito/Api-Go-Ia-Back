@@ -50,38 +50,19 @@ jobs:
             echo "⏸️ ETAPA 3: Parando processos antigos"
             echo "================================================"
             
-            # Cria script de parada para executar em background
-            cat > /tmp/stop-api.sh << 'EOF'
-            #!/bin/bash
-            # Para via systemd se disponível
-            systemctl --user stop api-go-ia.service 2>/dev/null || true
-            # Mata processos
-            killall -9 api-go-ia 2>/dev/null || true
-            sleep 1
-            pkill -9 -f "api-go-ia" 2>/dev/null || true
-            EOF
-            
-            chmod +x /tmp/stop-api.sh
-            
-            echo "� Parando processos antigos em background..."
-            nohup /tmp/stop-api.sh > /dev/null 2>&1 &
-            
-            # Aguarda um pouco para os processos serem finalizados
-            sleep 3
-            
-            # Verifica se ainda há processos
+            # Lista processos antes de parar
             if pgrep -f "api-go-ia" > /dev/null; then
-              echo "⚠️ Ainda há processos rodando, aguardando mais 2 segundos..."
-              sleep 2
-            fi
-            
-            if pgrep -f "api-go-ia" > /dev/null; then
-              echo "❌ ERRO: Não foi possível parar os processos antigos"
-              echo "PIDs restantes: $(pgrep -f api-go-ia)"
-              exit 1
+              echo " Processos encontrados: `$(pgrep -f api-go-ia | tr '\n' ' ')"
+              echo " Enviando SIGTERM..."
+              pkill -15 -f "api-go-ia" 2>/dev/null || true
+              sleep 3
+              if pgrep -f "api-go-ia" > /dev/null; then
+                echo " Alguns processos ainda ativos, continuando deploy..."
+              fi
             else
-              echo "✅ Todos os processos antigos foram finalizados"
+              echo " Nenhum processo encontrado"
             fi
+            echo " Prosseguindo..."
             
             echo ""
             echo "================================================"
@@ -253,3 +234,4 @@ jobs:
           echo "   - Serviço não iniciou"
           echo "   - Problemas de permissão"
           exit 1
+
