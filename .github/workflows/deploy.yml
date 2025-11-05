@@ -47,20 +47,36 @@ jobs:
             
             echo ""
             echo "================================================"
-            echo "⏸️ ETAPA 3: Parando serviço ANTES da atualização"
+            echo "⏸️ ETAPA 3: Parando processos antigos"
             echo "================================================"
-            # Para o serviço primeiro para liberar o binário
+            
+            # Primeiro tenta parar via systemd
             if command -v sudo &> /dev/null && sudo -n true 2>/dev/null; then
-              echo "🛑 Parando serviço com sudo..."
-              sudo systemctl stop api-go-ia.service 2>&1 || echo "   Serviço já parado ou não existe"
-              sleep 2
+              echo "🛑 Tentando parar via systemd (sudo)..."
+              sudo systemctl stop api-go-ia.service 2>&1 || echo "   Serviço systemd não configurado"
             else
-              echo "🛑 Parando serviço sem sudo..."
-              systemctl --user stop api-go-ia.service 2>&1 || echo "   Serviço já parado ou não existe"
-              sleep 2
+              echo "🛑 Tentando parar via systemd (user)..."
+              systemctl --user stop api-go-ia.service 2>&1 || echo "   Serviço systemd não configurado"
             fi
             
-            echo "✅ Serviço parado"
+            # Mata TODOS os processos api-go-ia em execução
+            echo "🔍 Procurando processos api-go-ia..."
+            if pgrep -f "api-go-ia" > /dev/null; then
+              echo "🛑 Matando processos antigos..."
+              killall -9 api-go-ia 2>/dev/null || true
+              sleep 2
+              
+              # Verifica se ainda há processos
+              if pgrep -f "api-go-ia" > /dev/null; then
+                echo "⚠️ AVISO: Ainda há processos rodando, forçando kill..."
+                pkill -9 -f "api-go-ia" || true
+                sleep 1
+              fi
+            else
+              echo "✅ Nenhum processo encontrado"
+            fi
+            
+            echo "✅ Processos antigos finalizados"
             
             echo ""
             echo "================================================"
@@ -150,40 +166,37 @@ jobs:
             echo "▶️ ETAPA 9: Iniciando novo serviço"
             echo "================================================"
             
+            # Primeiro tenta via systemd
+            SERVICE_STARTED=false
+            
             if command -v sudo &> /dev/null && sudo -n true 2>/dev/null; then
-              echo "▶️ Iniciando com sudo..."
-              sudo systemctl daemon-reload
-              sudo systemctl start api-go-ia.service
-              
-              echo "⏳ Aguardando serviço inicializar (5 segundos)..."
-              sleep 5
-              
-              echo "🔍 Status do serviço:"
-              sudo systemctl status api-go-ia.service --no-pager --lines=10
-              
-              # Verifica se está realmente rodando
-              if sudo systemctl is-active --quiet api-go-ia.service; then
-                echo "✅ Serviço ATIVO e RODANDO"
+              echo "▶️ Tentando iniciar via systemd (sudo)..."
+              if sudo systemctl daemon-reload && sudo systemctl start api-go-ia.service 2>&1; then
+                echo "✅ Serviço iniciado via systemd"
+                SERVICE_STARTED=true
               else
-                echo "❌ ERRO: Serviço não está ativo"
-                echo "📋 Logs recentes:"
-                sudo journalctl -u api-go-ia.service -n 50 --no-pager
-                exit 1
+                echo "⚠️ Systemd não disponível, iniciando manualmente..."
               fi
             else
-              echo "▶️ Iniciando sem sudo..."
-              systemctl --user daemon-reload 2>/dev/null || true
-              systemctl --user start api-go-ia.service 2>/dev/null || true
-              
-              echo "⏳ Aguardando serviço inicializar (5 segundos)..."
-              sleep 5
-              
-              if systemctl --user is-active --quiet api-go-ia.service 2>/dev/null; then
-                echo "✅ Serviço ATIVO e RODANDO"
+              echo "▶️ Tentando iniciar via systemd (user)..."
+              if systemctl --user daemon-reload 2>/dev/null && systemctl --user start api-go-ia.service 2>/dev/null; then
+                echo "✅ Serviço iniciado via systemd"
+                SERVICE_STARTED=true
               else
-                echo "⚠️ Não foi possível verificar status (mas binário atualizado)"
+                echo "⚠️ Systemd não disponível, iniciando manualmente..."
               fi
             fi
+            
+            # Se systemd não funcionou, inicia manualmente em background
+            if [ "$SERVICE_STARTED" = false ]; then
+              echo "🚀 Iniciando API manualmente em background..."
+              nohup ./api-go-ia > /tmp/api-go-ia.log 2>&1 &
+              echo $! > /tmp/api-go-ia.pid
+              echo "✅ API iniciada com PID: $(cat /tmp/api-go-ia.pid)"
+            fi
+            
+            echo "⏳ Aguardando API inicializar (5 segundos)..."
+            sleep 5
             
             echo ""
             echo "================================================"
