@@ -62,7 +62,8 @@ jobs:
             
             # Mata qualquer processo remanescente
             echo "🔍 Verificando processos da API..."
-            pkill -f "api-go-ia" || echo "   Nenhum processo encontrado"
+            pkill -f "api-go-ia" || true
+            echo "✅ Processos finalizados"
             sleep 1
             
             echo ""
