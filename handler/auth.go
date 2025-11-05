@@ -151,7 +151,7 @@ func LoginHandler(ctx *gin.Context) {
 	// 🔒 NOVO: Invalida token anterior se existir
 	if user.ActiveToken != nil && *user.ActiveToken != "" {
 		logger.InfoF("Invalidating previous token for user %d", user.ID)
-		
+
 		// Adiciona token anterior à blacklist
 		expiresAt := time.Now().Add(time.Hour * 24 * 7) // Mesmo TTL do token
 		db.Create(&schemas.TokenBlacklist{
