@@ -16,9 +16,6 @@ func InitializeRoutes(router *gin.Engine) {
 	basePatch := "/api/v1"
 	docs.SwaggerInfo.BasePath = basePatch
 
-	// Health check (rota pública para monitoramento)
-	router.GET("/health", handler.HealthHandler)
-
 	// Rotas públicas (sem autenticação)
 	public := router.Group(basePatch)
 	{
