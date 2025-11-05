@@ -33,6 +33,17 @@ definitions:
       message:
         type: string
     type: object
+  handler.HealthResponse:
+    properties:
+      service:
+        type: string
+      status:
+        type: string
+      timestamp:
+        type: string
+      version:
+        type: string
+    type: object
   handler.LoginRequest:
     properties:
       email:
@@ -684,6 +695,19 @@ paths:
       summary: Update category
       tags:
       - "\U0001F4C1 Categories"
+  /health:
+    get:
+      description: Retorna o status de saúde da API para monitoramento
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.HealthResponse'
+      summary: Health check da API
+      tags:
+      - health
   /item/{id}:
     delete:
       consumes:
