@@ -29,13 +29,15 @@ func InitializePostgreSQL() (*gorm.DB, error) {
 
 	// Migra o schema (ordem importa por causa das FKs)
 	err = db.AutoMigrate(
-		&schemas.User{},         // 1. Usuários (independente)
-		&schemas.Category{},     // 2. Categorias (independente)
-		&schemas.Product{},      // 3. Produtos (depende de Category)
-		&schemas.Receipt{},      // 4. Notas fiscais (depende de User)
-		&schemas.ReceiptItem{},  // 5. Itens de nota (depende de Receipt e Product)
-		&schemas.ShoppingList{}, // 6. Listas de compras (depende de User)
-		&schemas.ListItem{},     // 7. Itens de lista (depende de ShoppingList e Product)
+		&schemas.User{},            // 1. Usuários (independente)
+		&schemas.TokenBlacklist{},  // 2. Blacklist de tokens (depende de User)
+		&schemas.AITokenUsage{},    // 3. Uso de tokens da IA (depende de User)
+		&schemas.Category{},        // 4. Categorias (independente)
+		&schemas.Product{},         // 5. Produtos (depende de Category)
+		&schemas.Receipt{},         // 6. Notas fiscais (depende de User)
+		&schemas.ReceiptItem{},     // 7. Itens de nota (depende de Receipt e Product)
+		&schemas.ShoppingList{},    // 8. Listas de compras (depende de User)
+		&schemas.ListItem{},        // 9. Itens de lista (depende de ShoppingList e Product)
 	)
 	if err != nil {
 		logger.ErrorF("Erro na automigração do PostgreSQL: %v", err)

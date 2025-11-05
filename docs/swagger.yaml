@@ -229,6 +229,44 @@ definitions:
       total:
         type: number
     type: object
+  schemas.AITokenUsageResponse:
+    properties:
+      costCents:
+        type: number
+      createdAt:
+        type: string
+      endpoint:
+        type: string
+      id:
+        type: integer
+      model:
+        type: string
+      promptTokens:
+        type: integer
+      responseTokens:
+        type: integer
+      totalTokens:
+        type: integer
+      usedAt:
+        type: string
+      userId:
+        type: integer
+    type: object
+  schemas.AITokenUsageSummary:
+    properties:
+      requestCount:
+        type: integer
+      totalCostCents:
+        type: number
+      totalPromptTokens:
+        type: integer
+      totalResponseTokens:
+        type: integer
+      totalTokens:
+        type: integer
+      userId:
+        type: integer
+    type: object
   schemas.CategorySimple:
     properties:
       id:
@@ -388,6 +426,51 @@ info:
   title: API de Gestão de Notas Fiscais com IA
   version: "2.0"
 paths:
+  /ai-usage:
+    get:
+      description: Retorna todo o histórico de uso de tokens da IA do usuário autenticado
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/schemas.AITokenUsageResponse'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Obter histórico de uso de tokens
+      tags:
+      - ai-usage
+  /ai-usage/summary:
+    get:
+      description: Retorna estatísticas consolidadas de uso de tokens da IA do usuário
+        autenticado
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/schemas.AITokenUsageSummary'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Obter resumo de uso de tokens
+      tags:
+      - ai-usage
   /categories:
     get:
       consumes:
@@ -805,6 +888,35 @@ paths:
       summary: Login
       tags:
       - "\U0001F510 Authentication"
+  /logout:
+    post:
+      description: Invalida o token JWT atual, impedindo seu uso futuro
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Fazer logout
+      tags:
+      - auth
   /me:
     get:
       consumes:

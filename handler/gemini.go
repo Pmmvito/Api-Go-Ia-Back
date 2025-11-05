@@ -44,6 +44,14 @@ type GeminiResponse struct {
 			} `json:"parts"`
 		} `json:"content"`
 	} `json:"candidates"`
+	UsageMetadata *GeminiUsageMetadata `json:"usageMetadata,omitempty"`
+}
+
+// GeminiUsageMetadata contém informações sobre o uso de tokens
+type GeminiUsageMetadata struct {
+	PromptTokenCount     int `json:"promptTokenCount"`
+	CandidatesTokenCount int `json:"candidatesTokenCount"`
+	TotalTokenCount      int `json:"totalTokenCount"`
 }
 
 // GeminiReceiptData é a estrutura que a IA do Gemini deve retornar após analisar um recibo.

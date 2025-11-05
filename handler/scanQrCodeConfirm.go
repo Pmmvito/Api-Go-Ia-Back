@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/Pmmvito/Golang-Api-Exemple/schemas"
@@ -65,6 +66,13 @@ func ScanQRCodeConfirmHandler(ctx *gin.Context) {
 		return
 	}
 
+	// 🔒 Verifica limite de tokens antes de processar
+	if err := checkAITokenLimit(userID.(uint)); err != nil {
+		logger.ErrorF("❌ Token limit exceeded for user %d: %v", userID.(uint), err)
+		sendError(ctx, http.StatusForbidden, err.Error())
+		return
+	}
+
 	logger.InfoF("📝 Confirming receipt: %s - %d items - Total: R$ %.2f",
 		request.StoreName, len(request.Items), request.Total)
 
@@ -102,7 +110,7 @@ func ScanQRCodeConfirmHandler(ctx *gin.Context) {
 	}
 
 	// Usa a função de categorização existente
-	categorizedItems, err := categorizeItemsWithAI(nfceItems)
+	categorizationResult, err := categorizeItemsWithAI(nfceItems)
 	if err != nil {
 		logger.ErrorF("❌ AI categorization failed: %v", err.Error())
 		sendError(ctx, http.StatusInternalServerError, fmt.Sprintf("AI categorization error: %v", err.Error()))
@@ -112,9 +120,30 @@ func ScanQRCodeConfirmHandler(ctx *gin.Context) {
 	aiTime := time.Since(startAI)
 	logger.InfoF("✅ AI categorization completed in %.2fs", aiTime.Seconds())
 
+	// Registra uso de tokens da IA automaticamente (em background)
+	go func() {
+		model := os.Getenv("GEMINI_MODEL")
+		if model == "" {
+			model = "gemini-1.5-flash"
+		}
+		
+		err := recordAITokenUsageInternal(
+			userID.(uint),
+			categorizationResult.PromptTokens,
+			categorizationResult.ResponseTokens,
+			model,
+			"/scan-qrcode/confirm",
+		)
+		if err != nil {
+			logger.ErrorF("⚠️  Failed to record AI token usage: %v", err)
+		} else {
+			logger.InfoF("✅ AI token usage recorded successfully")
+		}
+	}()
+
 	// Monta mapa tempID -> categoryID
 	categoryMap := make(map[int]uint)
-	for i, categorizedItem := range categorizedItems {
+	for i, categorizedItem := range categorizationResult.Items {
 		if i < len(activeItems) {
 			categoryMap[activeItems[i].TempID] = categorizedItem.CategoryID
 			logger.InfoF("✓ Item #%d (%s) -> CategoryID: %d",

@@ -42,6 +42,19 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		tokenString := parts[1]
 
+		// Verifica se o token está na blacklist (logout)
+		db := config.GetPostgreSQL()
+		var blacklisted schemas.TokenBlacklist
+		if err := db.Where("token = ?", tokenString).First(&blacklisted).Error; err == nil {
+			// Token foi invalidado (logout)
+			ctx.JSON(http.StatusUnauthorized, gin.H{
+				"message":   "Token has been invalidated. Please login again.",
+				"errorCode": http.StatusUnauthorized,
+			})
+			ctx.Abort()
+			return
+		}
+
 		// Valida o token
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			// Verifica o método de assinatura
@@ -65,9 +78,9 @@ func AuthMiddleware() gin.HandlerFunc {
 			// Adiciona o userID no contexto para uso nos handlers
 			if userID, ok := claims["user_id"].(float64); ok {
 				ctx.Set("user_id", uint(userID))
+				ctx.Set("token", tokenString) // Armazena token para usar no logout
 
 				// Opcionalmente, busca o usuário completo do banco
-				db := config.GetPostgreSQL()
 				var user schemas.User
 				if err := db.First(&user, uint(userID)).Error; err == nil {
 					ctx.Set("user", user)

@@ -242,8 +242,16 @@ type CategorizedItem struct {
 	CategoryID  uint
 }
 
+// CategorizationResult contém os itens categorizados e os metadados de uso de tokens
+type CategorizationResult struct {
+	Items         []CategorizedItem
+	PromptTokens  int
+	ResponseTokens int
+	TotalTokens    int
+}
+
 // categorizeItemsWithAI usa o Gemini para categorizar os itens extraídos do scraping
-func categorizeItemsWithAI(items []NFCeItem) ([]CategorizedItem, error) {
+func categorizeItemsWithAI(items []NFCeItem) (*CategorizationResult, error) {
 	logger.InfoF("🤖 categorizeItemsWithAI called with %d items", len(items))
 
 	apiKey := os.Getenv("GEMINI_API_KEY")
@@ -362,7 +370,20 @@ func categorizeItemsWithAI(items []NFCeItem) ([]CategorizedItem, error) {
 		logger.InfoF("📋 Example: '%s' -> Category ID %d", categorizedItems[0].Description, categorizedItems[0].CategoryID)
 	}
 
-	return categorizedItems, nil
+	// Extrai metadados de uso de tokens
+	result := &CategorizationResult{
+		Items: categorizedItems,
+	}
+	
+	if geminiResp.UsageMetadata != nil {
+		result.PromptTokens = geminiResp.UsageMetadata.PromptTokenCount
+		result.ResponseTokens = geminiResp.UsageMetadata.CandidatesTokenCount
+		result.TotalTokens = geminiResp.UsageMetadata.TotalTokenCount
+		logger.InfoF("📊 Token usage - Prompt: %d, Response: %d, Total: %d",
+			result.PromptTokens, result.ResponseTokens, result.TotalTokens)
+	}
+
+	return result, nil
 }
 
 // Helper function para min

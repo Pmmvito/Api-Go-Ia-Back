@@ -28,6 +28,11 @@ func InitializeRoutes(router *gin.Engine) {
 	protected.Use(AuthMiddleware())
 	{
 		protected.GET("/me", handler.MeHandler)
+		protected.POST("/logout", handler.LogoutHandler)
+
+		// Rotas de uso de tokens da IA (apenas consulta - registro é automático)
+		protected.GET("/ai-usage", handler.GetAITokenUsageHandler)
+		protected.GET("/ai-usage/summary", handler.GetAITokenUsageSummaryHandler)
 
 		// Rotas de categorias
 		protected.POST("/category", handler.CreateCategoryHandler)
