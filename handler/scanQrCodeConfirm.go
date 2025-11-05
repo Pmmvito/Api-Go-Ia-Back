@@ -126,7 +126,7 @@ func ScanQRCodeConfirmHandler(ctx *gin.Context) {
 		if model == "" {
 			model = "gemini-1.5-flash"
 		}
-		
+
 		err := recordAITokenUsageInternal(
 			userID.(uint),
 			categorizationResult.PromptTokens,

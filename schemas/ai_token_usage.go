@@ -9,14 +9,14 @@ import (
 // AITokenUsage rastreia o uso de tokens da IA por usuário
 type AITokenUsage struct {
 	gorm.Model
-	UserID         uint      `json:"userId" gorm:"not null;index"`                  // FK para User
-	User           *User     `json:"user,omitempty" gorm:"foreignKey:UserID"`      // Relacionamento
-	PromptTokens   int       `json:"promptTokens" gorm:"not null"`                 // Tokens usados no prompt
-	ResponseTokens int       `json:"responseTokens" gorm:"not null"`               // Tokens usados na resposta
-	TotalTokens    int       `json:"totalTokens" gorm:"not null"`                  // Total de tokens
-	AIModel        string    `json:"model" gorm:"size:100;column:model"`           // Modelo usado (ex: gemini-2.5-flash)
-	Endpoint       string    `json:"endpoint" gorm:"size:255"`                     // Endpoint que fez a chamada
-	CostCents      float64   `json:"costCents"`                                    // Custo estimado em centavos
+	UserID         uint      `json:"userId" gorm:"not null;index"`                           // FK para User
+	User           *User     `json:"user,omitempty" gorm:"foreignKey:UserID"`                // Relacionamento
+	PromptTokens   int       `json:"promptTokens" gorm:"not null"`                           // Tokens usados no prompt
+	ResponseTokens int       `json:"responseTokens" gorm:"not null"`                         // Tokens usados na resposta
+	TotalTokens    int       `json:"totalTokens" gorm:"not null"`                            // Total de tokens
+	AIModel        string    `json:"model" gorm:"size:100;column:model"`                     // Modelo usado (ex: gemini-2.5-flash)
+	Endpoint       string    `json:"endpoint" gorm:"size:255"`                               // Endpoint que fez a chamada
+	CostCents      float64   `json:"costCents"`                                              // Custo estimado em centavos
 	UsedAt         time.Time `json:"usedAt" gorm:"not null;index;default:CURRENT_TIMESTAMP"` // Data/hora do uso
 }
 

@@ -244,8 +244,8 @@ type CategorizedItem struct {
 
 // CategorizationResult contém os itens categorizados e os metadados de uso de tokens
 type CategorizationResult struct {
-	Items         []CategorizedItem
-	PromptTokens  int
+	Items          []CategorizedItem
+	PromptTokens   int
 	ResponseTokens int
 	TotalTokens    int
 }
@@ -374,7 +374,7 @@ func categorizeItemsWithAI(items []NFCeItem) (*CategorizationResult, error) {
 	result := &CategorizationResult{
 		Items: categorizedItems,
 	}
-	
+
 	if geminiResp.UsageMetadata != nil {
 		result.PromptTokens = geminiResp.UsageMetadata.PromptTokenCount
 		result.ResponseTokens = geminiResp.UsageMetadata.CandidatesTokenCount
