@@ -17,6 +17,7 @@ type CategorySimple struct {
 type ReceiptItem struct {
 	gorm.Model
 	ReceiptID  uint      `json:"receiptId" gorm:"not null;index"`                 // Chave estrangeira para Receipt
+	Receipt    *Receipt  `json:"receipt,omitempty" gorm:"foreignKey:ReceiptID"`   // Relacionamento com Receipt
 	CategoryID uint      `json:"categoryId" gorm:"not null;index"`                // Chave estrangeira para Category
 	Category   *Category `json:"category,omitempty" gorm:"foreignKey:CategoryID"` // Relacionamento com Category
 	ProductID  uint      `json:"productId" gorm:"not null;index"`                 // Chave estrangeira para Product

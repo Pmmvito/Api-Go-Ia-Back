@@ -157,14 +157,13 @@ func GetCategoryHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Busca todos os itens dessa categoria com informações do recibo
-	var items []CategoryItemResponse
-	err := db.Table("receipt_items").
-		Select("receipt_items.id, receipt_items.description as name, receipt_items.total, receipt_items.quantity, receipt_items.unit, receipt_items.receipt_id, receipts.store_name, receipts.date as purchase_date").
-		Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
-		Where("receipt_items.category_id = ?", id).
-		Order("receipts.date DESC, receipt_items.description ASC").
-		Scan(&items).Error
+	// Busca todos os itens dessa categoria com informações do recibo usando GORM
+	var receiptItems []schemas.ReceiptItem
+	err := db.Preload("Product").
+		Preload("Receipt").
+		Where("category_id = ?", id).
+		Order("receipt_id DESC").
+		Find(&receiptItems).Error
 
 	if err != nil {
 		logger.ErrorF("error getting category items: %v", err.Error())
@@ -172,9 +171,38 @@ func GetCategoryHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Calcula total
+	// Converte para o formato de resposta
+	items := make([]CategoryItemResponse, 0, len(receiptItems))
 	var totalValue float64
-	for _, item := range items {
+	
+	for _, item := range receiptItems {
+		// Pega nome e unidade do produto (OBRIGATÓRIO)
+		name := "Produto sem nome"
+		unit := ""
+		if item.Product != nil {
+			name = item.Product.Name
+			unit = item.Product.Unity
+		}
+		
+		// Pega nome da loja e data do recibo
+		storeName := ""
+		purchaseDate := ""
+		if item.Receipt != nil {
+			storeName = item.Receipt.StoreName
+			purchaseDate = item.Receipt.Date
+		}
+		
+		items = append(items, CategoryItemResponse{
+			ID:           item.ID,
+			Name:         name,
+			Total:        item.Total,
+			Quantity:     item.Quantity,
+			Unit:         unit,
+			ReceiptID:    item.ReceiptID,
+			StoreName:    storeName,
+			PurchaseDate: purchaseDate,
+		})
+		
 		totalValue += item.Total
 	}
 
