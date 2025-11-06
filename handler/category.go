@@ -38,6 +38,26 @@ type GraphData struct {
 	GrandTotal float64                 `json:"grandTotal"`
 }
 
+// CategoryItemResponse define a estrutura para os itens de uma categoria
+type CategoryItemResponse struct {
+	ID          uint    `json:"id"`
+	Name        string  `json:"name"`
+	Total       float64 `json:"total"`
+	Quantity    float64 `json:"quantity"`
+	Unit        string  `json:"unit"`
+	ReceiptID   uint    `json:"receiptId"`
+	StoreName   string  `json:"storeName"`
+	PurchaseDate string `json:"purchaseDate"`
+}
+
+// CategoryWithItemsResponse define a resposta completa da categoria com seus itens
+type CategoryWithItemsResponse struct {
+	schemas.CategoryResponse
+	Items      []CategoryItemResponse `json:"items"`
+	ItemCount  int                    `json:"itemCount"`
+	TotalValue float64                `json:"totalValue"`
+}
+
 // @Summary Create new category
 // @Description Create a new expense category for organizing receipt items
 // @Tags 📁 Categories
@@ -112,13 +132,13 @@ func ListCategoriesHandler(ctx *gin.Context) {
 }
 
 // @Summary Get category details
-// @Description Get details of a specific category by ID
+// @Description Get details of a specific category by ID including all items that belong to this category
 // @Tags 📁 Categories
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param id path int true "Category ID" example(1)
-// @Success 200 {object} map[string]interface{} "Category details"
+// @Success 200 {object} map[string]interface{} "Category details with items"
 // @Failure 404 {object} ErrorResponse "Category not found"
 // @Failure 401 {object} ErrorResponse "Unauthorized - Invalid or missing token"
 // @Router /category/{id} [get]
@@ -129,15 +149,45 @@ func GetCategoryHandler(ctx *gin.Context) {
 		return
 	}
 
+	// Busca a categoria
 	var category schemas.Category
 	if err := db.First(&category, id).Error; err != nil {
 		sendError(ctx, http.StatusNotFound, "Category not found")
 		return
 	}
 
+	// Busca todos os itens dessa categoria com informações do recibo
+	var items []CategoryItemResponse
+	err := db.Table("receipt_items").
+		Select("receipt_items.id, receipt_items.description as name, receipt_items.total, receipt_items.quantity, receipt_items.unit, receipt_items.receipt_id, receipts.store_name, receipts.date as purchase_date").
+		Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
+		Where("receipt_items.category_id = ?", id).
+		Order("receipts.date DESC, receipt_items.description ASC").
+		Scan(&items).Error
+
+	if err != nil {
+		logger.ErrorF("error getting category items: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error getting category items")
+		return
+	}
+
+	// Calcula total
+	var totalValue float64
+	for _, item := range items {
+		totalValue += item.Total
+	}
+
+	// Monta resposta
+	response := CategoryWithItemsResponse{
+		CategoryResponse: category.ToResponse(),
+		Items:            items,
+		ItemCount:        len(items),
+		TotalValue:       totalValue,
+	}
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"message": "Category retrieved successfully",
-		"data":    category.ToResponse(),
+		"data":    response,
 	})
 }
 

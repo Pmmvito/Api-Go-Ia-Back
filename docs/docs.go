@@ -262,7 +262,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get details of a specific category by ID",
+                "description": "Get details of a specific category by ID including all items that belong to this category",
                 "consumes": [
                     "application/json"
                 ],
@@ -285,7 +285,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Category details",
+                        "description": "Category details with items",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true

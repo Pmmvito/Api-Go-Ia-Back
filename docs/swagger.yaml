@@ -612,7 +612,8 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get details of a specific category by ID
+      description: Get details of a specific category by ID including all items that
+        belong to this category
       parameters:
       - description: Category ID
         example: 1
@@ -624,7 +625,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Category details
+          description: Category details with items
           schema:
             additionalProperties: true
             type: object
