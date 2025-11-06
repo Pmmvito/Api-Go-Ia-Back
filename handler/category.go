@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"time"
+
 	"github.com/Pmmvito/Golang-Api-Exemple/schemas"
 	"github.com/gin-gonic/gin"
 )
@@ -40,14 +41,14 @@ type GraphData struct {
 
 // CategoryItemResponse define a estrutura para os itens de uma categoria
 type CategoryItemResponse struct {
-	ID          uint    `json:"id"`
-	Name        string  `json:"name"`
-	Total       float64 `json:"total"`
-	Quantity    float64 `json:"quantity"`
-	Unit        string  `json:"unit"`
-	ReceiptID   uint    `json:"receiptId"`
-	StoreName   string  `json:"storeName"`
-	PurchaseDate string `json:"purchaseDate"`
+	ID           uint    `json:"id"`
+	Name         string  `json:"name"`
+	Total        float64 `json:"total"`
+	Quantity     float64 `json:"quantity"`
+	Unit         string  `json:"unit"`
+	ReceiptID    uint    `json:"receiptId"`
+	StoreName    string  `json:"storeName"`
+	PurchaseDate string  `json:"purchaseDate"`
 }
 
 // CategoryWithItemsResponse define a resposta completa da categoria com seus itens
