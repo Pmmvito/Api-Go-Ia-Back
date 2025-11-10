@@ -62,23 +62,25 @@ type CategoryWithItemsResponse struct {
 }
 
 // @Summary Create new category
-// @Description Create a new expense category for organizing receipt items
+// @Description Create a new expense category for organizing receipt items. If a category with the same name was previously deleted, it will be reactivated.
 // @Tags 📁 Categories
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param request body CreateCategoryRequest true "Category data (name is required, description/icon/color are optional)"
 // @Success 201 {object} map[string]interface{} "Category created successfully"
-// @Failure 400 {object} ErrorResponse "Invalid request body"
+// @Success 200 {object} map[string]interface{} "Category reactivated successfully (when reactivating a deleted category)"
+// @Failure 400 {object} ErrorResponse "Dados inválidos para criação de categoria. O campo 'name' é obrigatório"
 // @Failure 401 {object} ErrorResponse "Unauthorized - Invalid or missing token"
-// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Failure 409 {object} ErrorResponse "Já existe uma categoria ativa com este nome. Por favor, escolha outro nome ou utilize a categoria existente"
+// @Failure 500 {object} ErrorResponse "Erro ao reativar a categoria deletada anteriormente. Por favor, tente novamente | Erro ao criar categoria no banco de dados. Por favor, tente novamente"
 // @Router /category [post]
 func CreateCategoryHandler(ctx *gin.Context) {
 	var request CreateCategoryRequest
 
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		logger.ErrorF("validation error: %v", err.Error())
-		sendError(ctx, http.StatusBadRequest, err.Error())
+		sendError(ctx, http.StatusBadRequest, "Dados inválidos para criação de categoria. O campo 'name' é obrigatório")
 		return
 	}
 
@@ -97,7 +99,7 @@ func CreateCategoryHandler(ctx *gin.Context) {
 
 			if err := db.Unscoped().Save(&existingCategory).Error; err != nil {
 				logger.ErrorF("error reactivating category: %v", err.Error())
-				sendError(ctx, http.StatusInternalServerError, "Error reactivating category")
+				sendError(ctx, http.StatusInternalServerError, "Erro ao reativar a categoria deletada anteriormente. Por favor, tente novamente")
 				return
 			}
 
@@ -110,7 +112,7 @@ func CreateCategoryHandler(ctx *gin.Context) {
 		} else {
 			// Categoria já existe e está ativa
 			logger.ErrorF("category already exists: %s", request.Name)
-			sendError(ctx, http.StatusConflict, "Category with this name already exists")
+			sendError(ctx, http.StatusConflict, "Já existe uma categoria ativa com este nome. Por favor, escolha outro nome ou utilize a categoria existente")
 			return
 		}
 	}
@@ -125,7 +127,7 @@ func CreateCategoryHandler(ctx *gin.Context) {
 
 	if err := db.Create(&category).Error; err != nil {
 		logger.ErrorF("error creating category: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error creating category")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao criar categoria no banco de dados. Por favor, tente novamente")
 		return
 	}
 
@@ -144,13 +146,13 @@ func CreateCategoryHandler(ctx *gin.Context) {
 // @Security BearerAuth
 // @Success 200 {object} map[string]interface{} "List of categories with count"
 // @Failure 401 {object} ErrorResponse "Unauthorized - Invalid or missing token"
-// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Failure 500 {object} ErrorResponse "Erro ao buscar categorias no banco de dados. Por favor, tente novamente"
 // @Router /categories [get]
 func ListCategoriesHandler(ctx *gin.Context) {
 	var categories []schemas.Category
 	if err := db.Order("name ASC").Find(&categories).Error; err != nil {
 		logger.ErrorF("error listing categories: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error listing categories")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao buscar categorias no banco de dados. Por favor, tente novamente")
 		return
 	}
 
@@ -175,20 +177,22 @@ func ListCategoriesHandler(ctx *gin.Context) {
 // @Security BearerAuth
 // @Param id path int true "Category ID" example(1)
 // @Success 200 {object} map[string]interface{} "Category details with items"
-// @Failure 404 {object} ErrorResponse "Category not found"
+// @Failure 400 {object} ErrorResponse "ID da categoria é obrigatório na URL"
+// @Failure 404 {object} ErrorResponse "Categoria não encontrada. Verifique se o ID está correto e se a categoria não foi deletada"
 // @Failure 401 {object} ErrorResponse "Unauthorized - Invalid or missing token"
+// @Failure 500 {object} ErrorResponse "Erro ao buscar itens da categoria. Por favor, tente novamente"
 // @Router /category/{id} [get]
 func GetCategoryHandler(ctx *gin.Context) {
 	id := ctx.Param("id")
 	if id == "" {
-		sendError(ctx, http.StatusBadRequest, "Category ID is required")
+		sendError(ctx, http.StatusBadRequest, "ID da categoria é obrigatório na URL")
 		return
 	}
 
 	// Busca a categoria
 	var category schemas.Category
 	if err := db.First(&category, id).Error; err != nil {
-		sendError(ctx, http.StatusNotFound, "Category not found")
+		sendError(ctx, http.StatusNotFound, "Categoria não encontrada. Verifique se o ID está correto e se a categoria não foi deletada")
 		return
 	}
 
@@ -202,7 +206,7 @@ func GetCategoryHandler(ctx *gin.Context) {
 
 	if err != nil {
 		logger.ErrorF("error getting category items: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error getting category items")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao buscar itens da categoria. Por favor, tente novamente")
 		return
 	}
 
@@ -264,27 +268,28 @@ func GetCategoryHandler(ctx *gin.Context) {
 // @Param id path int true "Category ID" example(1)
 // @Param request body UpdateCategoryRequest true "Category data to update (all fields optional)"
 // @Success 200 {object} map[string]interface{} "Category updated successfully"
-// @Failure 400 {object} ErrorResponse "Invalid request or no fields to update"
+// @Failure 400 {object} ErrorResponse "ID da categoria é obrigatório na URL | Dados inválidos para atualização da categoria. Verifique os campos enviados | Nenhum campo foi fornecido para atualização. Envie pelo menos um campo (name, description, icon ou color)"
 // @Failure 401 {object} ErrorResponse "Unauthorized - Invalid or missing token"
-// @Failure 404 {object} ErrorResponse "Category not found"
+// @Failure 404 {object} ErrorResponse "Categoria não encontrada. Verifique se o ID está correto e se a categoria não foi deletada"
+// @Failure 500 {object} ErrorResponse "Erro ao salvar atualização da categoria no banco de dados. Por favor, tente novamente"
 // @Router /category/{id} [patch]
 func UpdateCategoryHandler(ctx *gin.Context) {
 	id := ctx.Param("id")
 	if id == "" {
-		sendError(ctx, http.StatusBadRequest, "Category ID is required")
+		sendError(ctx, http.StatusBadRequest, "ID da categoria é obrigatório na URL")
 		return
 	}
 
 	var request UpdateCategoryRequest
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		logger.ErrorF("validation error: %v", err.Error())
-		sendError(ctx, http.StatusBadRequest, err.Error())
+		sendError(ctx, http.StatusBadRequest, "Dados inválidos para atualização da categoria. Verifique os campos enviados")
 		return
 	}
 
 	var category schemas.Category
 	if err := db.First(&category, id).Error; err != nil {
-		sendError(ctx, http.StatusNotFound, "Category not found")
+		sendError(ctx, http.StatusNotFound, "Categoria não encontrada. Verifique se o ID está correto e se a categoria não foi deletada")
 		return
 	}
 
@@ -308,13 +313,13 @@ func UpdateCategoryHandler(ctx *gin.Context) {
 	}
 
 	if !updated {
-		sendError(ctx, http.StatusBadRequest, "No fields to update")
+		sendError(ctx, http.StatusBadRequest, "Nenhum campo foi fornecido para atualização. Envie pelo menos um campo (name, description, icon ou color)")
 		return
 	}
 
 	if err := db.Save(&category).Error; err != nil {
 		logger.ErrorF("error updating category: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error updating category")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao salvar atualização da categoria no banco de dados. Por favor, tente novamente")
 		return
 	}
 
@@ -332,27 +337,28 @@ func UpdateCategoryHandler(ctx *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param id path int true "Category ID" example(1)
-// @Success 200 {object} map[string]interface{}
-// @Failure 404 {object} ErrorResponse
-// @Failure 401 {object} ErrorResponse
-// @Failure 400 {object} ErrorResponse "Cannot delete 'Não categorizado' category"
+// @Success 200 {object} map[string]interface{} "Category deleted successfully, items moved to 'Não categorizado'"
+// @Failure 400 {object} ErrorResponse "ID da categoria é obrigatório na URL | A categoria 'Não categorizado' é do sistema e não pode ser deletada"
+// @Failure 404 {object} ErrorResponse "Categoria não encontrada. Verifique se o ID está correto e se a categoria não foi deletada anteriormente"
+// @Failure 401 {object} ErrorResponse "Unauthorized - Invalid or missing token"
+// @Failure 500 {object} ErrorResponse "Categoria do sistema 'Não categorizado' não foi encontrada. Por favor, restaure as categorias padrão | Erro ao mover itens para a categoria 'Não categorizado'. Operação cancelada | Erro ao deletar categoria. Operação cancelada | Erro ao confirmar a exclusão da categoria no banco de dados. Por favor, tente novamente"
 // @Router /category/{id} [delete]
 func DeleteCategoryHandler(ctx *gin.Context) {
 	id := ctx.Param("id")
 	if id == "" {
-		sendError(ctx, http.StatusBadRequest, "Category ID is required")
+		sendError(ctx, http.StatusBadRequest, "ID da categoria é obrigatório na URL")
 		return
 	}
 
 	var category schemas.Category
 	if err := db.First(&category, id).Error; err != nil {
-		sendError(ctx, http.StatusNotFound, "Category not found")
+		sendError(ctx, http.StatusNotFound, "Categoria não encontrada. Verifique se o ID está correto e se a categoria não foi deletada anteriormente")
 		return
 	}
 
 	// Não permite deletar a categoria "Não categorizado"
 	if category.Name == "Não categorizado" {
-		sendError(ctx, http.StatusBadRequest, "Cannot delete 'Não categorizado' category")
+		sendError(ctx, http.StatusBadRequest, "A categoria 'Não categorizado' é do sistema e não pode ser deletada")
 		return
 	}
 
@@ -360,7 +366,7 @@ func DeleteCategoryHandler(ctx *gin.Context) {
 	var uncategorized schemas.Category
 	if err := db.Where("name = ?", "Não categorizado").First(&uncategorized).Error; err != nil {
 		logger.ErrorF("'Não categorizado' category not found: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "System category 'Não categorizado' not found")
+		sendError(ctx, http.StatusInternalServerError, "Categoria do sistema 'Não categorizado' não foi encontrada. Por favor, restaure as categorias padrão")
 		return
 	}
 
@@ -380,7 +386,7 @@ func DeleteCategoryHandler(ctx *gin.Context) {
 	if result.Error != nil {
 		tx.Rollback()
 		logger.ErrorF("error moving items to uncategorized: %v", result.Error.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error moving items to uncategorized")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao mover itens para a categoria 'Não categorizado'. Operação cancelada")
 		return
 	}
 
@@ -391,14 +397,14 @@ func DeleteCategoryHandler(ctx *gin.Context) {
 	if err := tx.Delete(&category).Error; err != nil {
 		tx.Rollback()
 		logger.ErrorF("error deleting category: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error deleting category")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao deletar categoria. Operação cancelada")
 		return
 	}
 
 	// Commit
 	if err := tx.Commit().Error; err != nil {
 		logger.ErrorF("error committing transaction: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error committing deletion")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao confirmar a exclusão da categoria no banco de dados. Por favor, tente novamente")
 		return
 	}
 
@@ -419,9 +425,9 @@ func DeleteCategoryHandler(ctx *gin.Context) {
 // @Param start_date query string false "Start date for filtering (YYYY-MM-DD)"
 // @Param end_date query string false "End date for filtering (YYYY-MM-DD)"
 // @Success 200 {object} map[string]interface{} "Category graph data retrieved successfully"
-// @Failure 400 {object} ErrorResponse "Invalid date format"
+// @Failure 400 {object} ErrorResponse "Formato de start_date inválido. Use o formato YYYY-MM-DD (exemplo: 2024-01-15) | Formato de end_date inválido. Use o formato YYYY-MM-DD (exemplo: 2024-01-31)"
 // @Failure 401 {object} ErrorResponse "Unauthorized - Invalid or missing token"
-// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Failure 500 {object} ErrorResponse "Erro ao buscar notas fiscais do período. Por favor, tente novamente | Erro ao buscar itens das notas fiscais. Por favor, tente novamente | Erro ao buscar categorias. Por favor, tente novamente"
 // @Router /categories/graph [get]
 func GetCategoryGraphHandler(ctx *gin.Context) {
 	userID, _ := ctx.Get("user_id")
@@ -439,12 +445,12 @@ func GetCategoryGraphHandler(ctx *gin.Context) {
 	} else {
 		startDate, err = time.Parse("2006-01-02", startDateStr)
 		if err != nil {
-			sendError(ctx, http.StatusBadRequest, "Invalid start_date format. Use YYYY-MM-DD")
+			sendError(ctx, http.StatusBadRequest, "Formato de start_date inválido. Use o formato YYYY-MM-DD (exemplo: 2024-01-15)")
 			return
 		}
 		endDate, err = time.Parse("2006-01-02", endDateStr)
 		if err != nil {
-			sendError(ctx, http.StatusBadRequest, "Invalid end_date format. Use YYYY-MM-DD")
+			sendError(ctx, http.StatusBadRequest, "Formato de end_date inválido. Use o formato YYYY-MM-DD (exemplo: 2024-01-31)")
 			return
 		}
 		// Adiciona um dia ao endDate para incluir todo o período
@@ -456,7 +462,7 @@ func GetCategoryGraphHandler(ctx *gin.Context) {
 	if err := db.Where("user_id = ? AND date >= ? AND date < ?", userID, startDate.Format("2006-01-02"), endDate.Format("2006-01-02")).
 		Find(&receipts).Error; err != nil {
 		logger.ErrorF("error finding receipts: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error getting receipts")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao buscar notas fiscais do período. Por favor, tente novamente")
 		return
 	}
 
@@ -471,7 +477,7 @@ func GetCategoryGraphHandler(ctx *gin.Context) {
 	if len(receiptIDs) > 0 {
 		if err := db.Where("receipt_id IN ?", receiptIDs).Find(&items).Error; err != nil {
 			logger.ErrorF("error finding receipt items: %v", err.Error())
-			sendError(ctx, http.StatusInternalServerError, "Error getting receipt items")
+			sendError(ctx, http.StatusInternalServerError, "Erro ao buscar itens das notas fiscais. Por favor, tente novamente")
 			return
 		}
 	}
@@ -480,7 +486,7 @@ func GetCategoryGraphHandler(ctx *gin.Context) {
 	var categories []schemas.Category
 	if err := db.Find(&categories).Error; err != nil {
 		logger.ErrorF("error finding categories: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error getting categories")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao buscar categorias. Por favor, tente novamente")
 		return
 	}
 

@@ -15,21 +15,21 @@ import (
 // @Produce json
 // @Security BearerAuth
 // @Success 200 {object} map[string]interface{} "User deleted successfully"
-// @Failure 401 {object} ErrorResponse "Unauthorized - Invalid or missing token"
-// @Failure 404 {object} ErrorResponse "User not found"
-// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Failure 401 {object} ErrorResponse "ID do usuário não encontrado no contexto de autenticação. Por favor, faça login novamente"
+// @Failure 404 {object} ErrorResponse "Usuário não encontrado no banco de dados. Pode ter sido deletado anteriormente"
+// @Failure 500 {object} ErrorResponse "Erro ao buscar notas fiscais do usuário durante a exclusão | Erro ao deletar itens das notas fiscais. Operação cancelada | Erro ao deletar notas fiscais. Operação cancelada | Erro ao buscar listas de compras durante a exclusão | Erro ao deletar itens das listas de compras. Operação cancelada | Erro ao deletar listas de compras. Operação cancelada | Erro ao deletar tokens da blacklist. Operação cancelada | Erro ao deletar registros de uso da IA. Operação cancelada | Erro ao deletar usuário. Operação cancelada | Erro ao confirmar a exclusão no banco de dados. Por favor, tente novamente"
 // @Router /user [delete]
 func DeleteUserHandler(ctx *gin.Context) {
 	userID, exists := ctx.Get("user_id")
 	if !exists {
-		sendError(ctx, http.StatusUnauthorized, "User ID not found in context")
+		sendError(ctx, http.StatusUnauthorized, "ID do usuário não encontrado no contexto de autenticação. Por favor, faça login novamente")
 		return
 	}
 
 	// Busca o usuário
 	var user schemas.User
 	if err := db.First(&user, userID).Error; err != nil {
-		sendError(ctx, http.StatusNotFound, "User not found")
+		sendError(ctx, http.StatusNotFound, "Usuário não encontrado no banco de dados. Pode ter sido deletado anteriormente")
 		return
 	}
 
@@ -50,7 +50,7 @@ func DeleteUserHandler(ctx *gin.Context) {
 	if err := tx.Where("user_id = ?", user.ID).Find(&receipts).Error; err != nil {
 		tx.Rollback()
 		config.GetLogger("handler").ErrorF("error finding receipts: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error finding user receipts")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao buscar notas fiscais do usuário durante a exclusão")
 		return
 	}
 
@@ -61,7 +61,7 @@ func DeleteUserHandler(ctx *gin.Context) {
 		if result.Error != nil {
 			tx.Rollback()
 			config.GetLogger("handler").ErrorF("error deleting receipt items: %v", result.Error.Error())
-			sendError(ctx, http.StatusInternalServerError, "Error deleting receipt items")
+			sendError(ctx, http.StatusInternalServerError, "Erro ao deletar itens das notas fiscais. Operação cancelada")
 			return
 		}
 		itemsDeleted += result.RowsAffected
@@ -73,7 +73,7 @@ func DeleteUserHandler(ctx *gin.Context) {
 		if result.Error != nil {
 			tx.Rollback()
 			config.GetLogger("handler").ErrorF("error deleting receipts: %v", result.Error.Error())
-			sendError(ctx, http.StatusInternalServerError, "Error deleting receipts")
+			sendError(ctx, http.StatusInternalServerError, "Erro ao deletar notas fiscais. Operação cancelada")
 			return
 		}
 		receiptsDeleted = result.RowsAffected
@@ -84,7 +84,7 @@ func DeleteUserHandler(ctx *gin.Context) {
 	if err := tx.Where("user_id = ?", user.ID).Find(&shoppingLists).Error; err != nil {
 		tx.Rollback()
 		config.GetLogger("handler").ErrorF("error finding shopping lists: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error finding shopping lists")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao buscar listas de compras durante a exclusão")
 		return
 	}
 
@@ -94,7 +94,7 @@ func DeleteUserHandler(ctx *gin.Context) {
 		if result.Error != nil {
 			tx.Rollback()
 			config.GetLogger("handler").ErrorF("error deleting list items: %v", result.Error.Error())
-			sendError(ctx, http.StatusInternalServerError, "Error deleting list items")
+			sendError(ctx, http.StatusInternalServerError, "Erro ao deletar itens das listas de compras. Operação cancelada")
 			return
 		}
 		listItemsDeleted += result.RowsAffected
@@ -106,7 +106,7 @@ func DeleteUserHandler(ctx *gin.Context) {
 		if result.Error != nil {
 			tx.Rollback()
 			config.GetLogger("handler").ErrorF("error deleting shopping lists: %v", result.Error.Error())
-			sendError(ctx, http.StatusInternalServerError, "Error deleting shopping lists")
+			sendError(ctx, http.StatusInternalServerError, "Erro ao deletar listas de compras. Operação cancelada")
 			return
 		}
 		shoppingListsDeleted = result.RowsAffected
@@ -117,7 +117,7 @@ func DeleteUserHandler(ctx *gin.Context) {
 	if result.Error != nil {
 		tx.Rollback()
 		config.GetLogger("handler").ErrorF("error deleting token blacklist: %v", result.Error.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error deleting token blacklist")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao deletar tokens da blacklist. Operação cancelada")
 		return
 	}
 	tokenBlacklistDeleted = result.RowsAffected
@@ -127,7 +127,7 @@ func DeleteUserHandler(ctx *gin.Context) {
 	if result.Error != nil {
 		tx.Rollback()
 		config.GetLogger("handler").ErrorF("error deleting AI token usage: %v", result.Error.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error deleting AI token usage")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao deletar registros de uso da IA. Operação cancelada")
 		return
 	}
 	aiTokenUsageDeleted = result.RowsAffected
@@ -136,14 +136,14 @@ func DeleteUserHandler(ctx *gin.Context) {
 	if err := tx.Delete(&user).Error; err != nil {
 		tx.Rollback()
 		config.GetLogger("handler").ErrorF("error deleting user: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error deleting user")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao deletar usuário. Operação cancelada")
 		return
 	}
 
 	// Commit da transação
 	if err := tx.Commit().Error; err != nil {
 		config.GetLogger("handler").ErrorF("error committing transaction: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error committing deletion")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao confirmar a exclusão no banco de dados. Por favor, tente novamente")
 		return
 	}
 

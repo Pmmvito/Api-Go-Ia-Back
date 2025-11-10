@@ -54,15 +54,15 @@ func GenerateJWT(userID uint) (string, error) {
 // @Produce json
 // @Param request body RegisterRequest true "User registration data (name, email, password)"
 // @Success 201 {object} AuthResponse "User created successfully with JWT token"
-// @Failure 400 {object} ErrorResponse "Invalid request or email already registered"
-// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Failure 400 {object} ErrorResponse "Dados de registro inválidos: verifique se nome (mínimo 2 caracteres), email válido e senha (mínimo 6 caracteres) foram fornecidos corretamente | Este email já está cadastrado. Por favor, utilize outro email ou faça login | Este email foi utilizado em uma conta deletada e não pode ser reutilizado por questões de segurança"
+// @Failure 500 {object} ErrorResponse "Erro ao processar a senha durante o cadastro. Por favor, tente novamente | Erro ao criar usuário no banco de dados. Por favor, tente novamente mais tarde | Usuário criado com sucesso, mas houve erro ao gerar o token de autenticação. Por favor, faça login"
 // @Router /register [post]
 func RegisterHandler(ctx *gin.Context) {
 	var request RegisterRequest
 
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		logger.ErrorF("validation error: %v", err.Error())
-		sendError(ctx, http.StatusBadRequest, err.Error())
+		sendError(ctx, http.StatusBadRequest, "Dados de registro inválidos: verifique se nome (mínimo 2 caracteres), email válido e senha (mínimo 6 caracteres) foram fornecidos corretamente")
 		return
 	}
 
@@ -72,9 +72,9 @@ func RegisterHandler(ctx *gin.Context) {
 	if err := db.Unscoped().Where("email = ?", request.Email).First(&existingUser).Error; err == nil {
 		// Email encontrado - pode ser usuário ativo ou deletado
 		if existingUser.DeletedAt.Valid {
-			sendError(ctx, http.StatusBadRequest, "This email was used in a deleted account and cannot be reused")
+			sendError(ctx, http.StatusBadRequest, "Este email foi utilizado em uma conta deletada e não pode ser reutilizado por questões de segurança")
 		} else {
-			sendError(ctx, http.StatusBadRequest, "Email already registered")
+			sendError(ctx, http.StatusBadRequest, "Este email já está cadastrado. Por favor, utilize outro email ou faça login")
 		}
 		return
 	}
@@ -88,14 +88,14 @@ func RegisterHandler(ctx *gin.Context) {
 	// Hash da senha
 	if err := user.HashPassword(request.Password); err != nil {
 		logger.ErrorF("error hashing password: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error creating user")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao processar a senha durante o cadastro. Por favor, tente novamente")
 		return
 	}
 
 	// Salva no banco
 	if err := db.Create(&user).Error; err != nil {
 		logger.ErrorF("error creating user: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error creating user")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao criar usuário no banco de dados. Por favor, tente novamente mais tarde")
 		return
 	}
 
@@ -103,7 +103,7 @@ func RegisterHandler(ctx *gin.Context) {
 	token, err := GenerateJWT(user.ID)
 	if err != nil {
 		logger.ErrorF("error generating token: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error generating authentication token")
+		sendError(ctx, http.StatusInternalServerError, "Usuário criado com sucesso, mas houve erro ao gerar o token de autenticação. Por favor, faça login")
 		return
 	}
 
@@ -129,28 +129,29 @@ func RegisterHandler(ctx *gin.Context) {
 // @Produce json
 // @Param request body LoginRequest true "User credentials (email and password)"
 // @Success 200 {object} AuthResponse "Login successful with JWT token"
-// @Failure 400 {object} ErrorResponse "Invalid request body"
-// @Failure 401 {object} ErrorResponse "Invalid email or password"
+// @Failure 400 {object} ErrorResponse "Dados de login inválidos: email e senha são obrigatórios"
+// @Failure 401 {object} ErrorResponse "Email ou senha incorretos. Verifique suas credenciais e tente novamente"
+// @Failure 500 {object} ErrorResponse "Erro ao gerar token de autenticação. Por favor, tente novamente"
 // @Router /login [post]
 func LoginHandler(ctx *gin.Context) {
 	var request LoginRequest
 
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		logger.ErrorF("validation error: %v", err.Error())
-		sendError(ctx, http.StatusBadRequest, err.Error())
+		sendError(ctx, http.StatusBadRequest, "Dados de login inválidos: email e senha são obrigatórios")
 		return
 	}
 
 	// Busca usuário por email
 	var user schemas.User
 	if err := db.Where("email = ?", request.Email).First(&user).Error; err != nil {
-		sendError(ctx, http.StatusUnauthorized, "Invalid email or password")
+		sendError(ctx, http.StatusUnauthorized, "Email ou senha incorretos. Verifique suas credenciais e tente novamente")
 		return
 	}
 
 	// Verifica senha
 	if !user.CheckPassword(request.Password) {
-		sendError(ctx, http.StatusUnauthorized, "Invalid email or password")
+		sendError(ctx, http.StatusUnauthorized, "Email ou senha incorretos. Verifique suas credenciais e tente novamente")
 		return
 	}
 
@@ -171,7 +172,7 @@ func LoginHandler(ctx *gin.Context) {
 	token, err := GenerateJWT(user.ID)
 	if err != nil {
 		logger.ErrorF("error generating token: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error generating authentication token")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao gerar token de autenticação. Por favor, tente novamente")
 		return
 	}
 
@@ -197,13 +198,13 @@ func LoginHandler(ctx *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Success 200 {object} schemas.UserResponse "User information retrieved successfully"
-// @Failure 401 {object} ErrorResponse "Unauthorized - Invalid or missing token"
+// @Failure 401 {object} ErrorResponse "Usuário não encontrado no contexto de autenticação. Token pode estar inválido ou expirado"
 // @Router /me [get]
 func MeHandler(ctx *gin.Context) {
 	// Pega o usuário do contexto (injetado pelo middleware)
 	userInterface, exists := ctx.Get("user")
 	if !exists {
-		sendError(ctx, http.StatusUnauthorized, "User not found")
+		sendError(ctx, http.StatusUnauthorized, "Usuário não encontrado no contexto de autenticação. Token pode estar inválido ou expirado")
 		return
 	}
 

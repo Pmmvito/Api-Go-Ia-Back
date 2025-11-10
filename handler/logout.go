@@ -16,14 +16,14 @@ import (
 // @Produce json
 // @Security BearerAuth
 // @Success 200 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 500 {object} map[string]string
+// @Failure 401 {object} map[string]string "Token não encontrado no contexto de autenticação"
+// @Failure 500 {object} map[string]string "Erro ao adicionar o token à lista de tokens invalidados. Por favor, tente novamente"
 // @Router /logout [post]
 func LogoutHandler(ctx *gin.Context) {
 	// Pega o token do contexto (foi armazenado pelo middleware)
 	tokenString, exists := ctx.Get("token")
 	if !exists {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Token não encontrado"})
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Token não encontrado no contexto de autenticação"})
 		return
 	}
 
@@ -58,7 +58,7 @@ func LogoutHandler(ctx *gin.Context) {
 
 	if err := db.Create(&blacklist).Error; err != nil {
 		logger.ErrorF("Erro ao adicionar token à blacklist: %v", err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao fazer logout"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao adicionar o token à lista de tokens invalidados. Por favor, tente novamente"})
 		return
 	}
 

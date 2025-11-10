@@ -128,7 +128,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Erro ao buscar categorias no banco de dados. Por favor, tente novamente",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
@@ -177,7 +177,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid date format",
+                        "description": "Formato de start_date inválido. Use o formato YYYY-MM-DD (exemplo: 2024-01-15) | Formato de end_date inválido. Use o formato YYYY-MM-DD (exemplo: 2024-01-31)",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
@@ -189,7 +189,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Erro ao buscar notas fiscais do período. Por favor, tente novamente | Erro ao buscar itens das notas fiscais. Por favor, tente novamente | Erro ao buscar categorias. Por favor, tente novamente",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
@@ -204,7 +204,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a new expense category for organizing receipt items",
+                "description": "Create a new expense category for organizing receipt items. If a category with the same name was previously deleted, it will be reactivated.",
                 "consumes": [
                     "application/json"
                 ],
@@ -227,6 +227,13 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
+                    "200": {
+                        "description": "Category reactivated successfully (when reactivating a deleted category)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
                     "201": {
                         "description": "Category created successfully",
                         "schema": {
@@ -235,7 +242,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request body",
+                        "description": "Dados inválidos para criação de categoria. O campo 'name' é obrigatório",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
@@ -246,8 +253,14 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
+                    "409": {
+                        "description": "Já existe uma categoria ativa com este nome. Por favor, escolha outro nome ou utilize a categoria existente",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Erro ao reativar a categoria deletada anteriormente. Por favor, tente novamente | Erro ao criar categoria no banco de dados. Por favor, tente novamente",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
@@ -291,6 +304,12 @@ const docTemplate = `{
                             "additionalProperties": true
                         }
                     },
+                    "400": {
+                        "description": "ID da categoria é obrigatório na URL",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
                     "401": {
                         "description": "Unauthorized - Invalid or missing token",
                         "schema": {
@@ -298,7 +317,13 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "Category not found",
+                        "description": "Categoria não encontrada. Verifique se o ID está correto e se a categoria não foi deletada",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao buscar itens da categoria. Por favor, tente novamente",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
@@ -334,26 +359,32 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Category deleted successfully, items moved to 'Não categorizado'",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Cannot delete 'Não categorizado' category",
+                        "description": "ID da categoria é obrigatório na URL | A categoria 'Não categorizado' é do sistema e não pode ser deletada",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Unauthorized - Invalid or missing token",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Categoria não encontrada. Verifique se o ID está correto e se a categoria não foi deletada anteriormente",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Categoria do sistema 'Não categorizado' não foi encontrada. Por favor, restaure as categorias padrão | Erro ao mover itens para a categoria 'Não categorizado'. Operação cancelada | Erro ao deletar categoria. Operação cancelada | Erro ao confirmar a exclusão da categoria no banco de dados. Por favor, tente novamente",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
@@ -405,7 +436,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request or no fields to update",
+                        "description": "ID da categoria é obrigatório na URL | Dados inválidos para atualização da categoria. Verifique os campos enviados | Nenhum campo foi fornecido para atualização. Envie pelo menos um campo (name, description, icon ou color)",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
@@ -417,7 +448,13 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "Category not found",
+                        "description": "Categoria não encontrada. Verifique se o ID está correto e se a categoria não foi deletada",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao salvar atualização da categoria no banco de dados. Por favor, tente novamente",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
@@ -801,13 +838,19 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request body",
+                        "description": "Dados de login inválidos: email e senha são obrigatórios",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
                     "401": {
-                        "description": "Invalid email or password",
+                        "description": "Email ou senha incorretos. Verifique suas credenciais e tente novamente",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao gerar token de autenticação. Por favor, tente novamente",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
@@ -841,7 +884,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "Token não encontrado no contexto de autenticação",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -850,7 +893,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Erro ao adicionar o token à lista de tokens invalidados. Por favor, tente novamente",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -887,7 +930,7 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Unauthorized - Invalid or missing token",
+                        "description": "Usuário não encontrado no contexto de autenticação. Token pode estar inválido ou expirado",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
@@ -1690,13 +1733,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request or email already registered",
+                        "description": "Dados de registro inválidos: verifique se nome (mínimo 2 caracteres), email válido e senha (mínimo 6 caracteres) foram fornecidos corretamente | Este email já está cadastrado. Por favor, utilize outro email ou faça login | Este email foi utilizado em uma conta deletada e não pode ser reutilizado por questões de segurança",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Erro ao processar a senha durante o cadastro. Por favor, tente novamente | Erro ao criar usuário no banco de dados. Por favor, tente novamente mais tarde | Usuário criado com sucesso, mas houve erro ao gerar o token de autenticação. Por favor, faça login",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
@@ -1833,19 +1876,19 @@ const docTemplate = `{
                         }
                     },
                     "401": {
-                        "description": "Unauthorized - Invalid or missing token",
+                        "description": "ID do usuário não encontrado no contexto de autenticação. Por favor, faça login novamente",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "User not found",
+                        "description": "Usuário não encontrado no banco de dados. Pode ter sido deletado anteriormente",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Erro ao buscar notas fiscais do usuário durante a exclusão | Erro ao deletar itens das notas fiscais. Operação cancelada | Erro ao deletar notas fiscais. Operação cancelada | Erro ao buscar listas de compras durante a exclusão | Erro ao deletar itens das listas de compras. Operação cancelada | Erro ao deletar listas de compras. Operação cancelada | Erro ao deletar tokens da blacklist. Operação cancelada | Erro ao deletar registros de uso da IA. Operação cancelada | Erro ao deletar usuário. Operação cancelada | Erro ao confirmar a exclusão no banco de dados. Por favor, tente novamente",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
