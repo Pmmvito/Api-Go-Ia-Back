@@ -85,7 +85,7 @@ func CreateCategoryHandler(ctx *gin.Context) {
 	// Verifica se existe uma categoria deletada com o mesmo nome
 	var existingCategory schemas.Category
 	err := db.Unscoped().Where("name = ?", request.Name).First(&existingCategory).Error
-	
+
 	if err == nil {
 		// Categoria encontrada - verifica se está deletada
 		if existingCategory.DeletedAt.Valid {
@@ -94,13 +94,13 @@ func CreateCategoryHandler(ctx *gin.Context) {
 			existingCategory.Description = request.Description
 			existingCategory.Icon = request.Icon
 			existingCategory.Color = request.Color
-			
+
 			if err := db.Unscoped().Save(&existingCategory).Error; err != nil {
 				logger.ErrorF("error reactivating category: %v", err.Error())
 				sendError(ctx, http.StatusInternalServerError, "Error reactivating category")
 				return
 			}
-			
+
 			logger.InfoF("Category reactivated with ID: %d", existingCategory.ID)
 			ctx.JSON(http.StatusOK, gin.H{
 				"message": "Category reactivated successfully",
