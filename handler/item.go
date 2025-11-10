@@ -234,9 +234,9 @@ type RecategorizeItemsRequest struct {
 
 // RecategorizeItemsResponse define a estrutura da resposta
 type RecategorizeItemsResponse struct {
-	Message            string                         `json:"message"`
-	ItemsRecategorized int                            `json:"itemsRecategorized"`
-	Results            []ItemRecategorizationResult   `json:"results"`
+	Message            string                       `json:"message"`
+	ItemsRecategorized int                          `json:"itemsRecategorized"`
+	Results            []ItemRecategorizationResult `json:"results"`
 }
 
 type ItemRecategorizationResult struct {
@@ -281,7 +281,7 @@ func RecategorizeItemsHandler(ctx *gin.Context) {
 		Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
 		Where("receipt_items.id IN ? AND receipts.user_id = ?", request.ItemIDs, userID).
 		Find(&items).Error
-	
+
 	if err != nil {
 		logger.ErrorF("error finding items: %v", err.Error())
 		sendError(ctx, http.StatusInternalServerError, "Error finding items")
@@ -326,7 +326,7 @@ func buildRecategorizationPrompt(items []schemas.ReceiptItem, categories []schem
 	var prompt string
 	prompt += "Você é um assistente que categoriza produtos de supermercado.\n\n"
 	prompt += "CATEGORIAS DISPONÍVEIS (use o ID para categorizar):\n"
-	
+
 	for _, cat := range categories {
 		if cat.Name == "Não categorizado" {
 			continue // Não deve recategorizar para esta categoria
@@ -337,14 +337,14 @@ func buildRecategorizationPrompt(items []schemas.ReceiptItem, categories []schem
 		}
 		prompt += "\n"
 	}
-	
+
 	prompt += "\nPRODUTOS PARA CATEGORIZAR:\n"
 	for _, item := range items {
 		if item.Product != nil {
 			prompt += "ItemID " + string(rune(item.ID)) + ": " + item.Product.Name + " (" + item.Product.Unity + ")\n"
 		}
 	}
-	
+
 	prompt += "\nRetorne um JSON com o seguinte formato:\n"
 	prompt += "{\n"
 	prompt += "  \"categorizations\": [\n"
@@ -357,7 +357,7 @@ func buildRecategorizationPrompt(items []schemas.ReceiptItem, categories []schem
 	prompt += "- Escolha a categoria MAIS ESPECÍFICA para cada produto\n"
 	prompt += "- NUNCA use a categoria 'Não categorizado'\n"
 	prompt += "- Seja consistente: produtos similares devem ter a mesma categoria\n"
-	
+
 	return prompt
 }
 

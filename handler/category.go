@@ -342,7 +342,7 @@ func DeleteCategoryHandler(ctx *gin.Context) {
 	result := tx.Model(&schemas.ReceiptItem{}).
 		Where("category_id = ?", category.ID).
 		Update("category_id", uncategorized.ID)
-	
+
 	if result.Error != nil {
 		tx.Rollback()
 		logger.ErrorF("error moving items to uncategorized: %v", result.Error.Error())

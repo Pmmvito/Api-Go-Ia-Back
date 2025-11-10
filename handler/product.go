@@ -34,7 +34,7 @@ type UpdateProductRequest struct {
 // @Router /products [get]
 func GetProductsHandler(ctx *gin.Context) {
 	userID, _ := ctx.Get("user_id")
-	
+
 	var products []schemas.Product
 	// Busca apenas produtos que tenham items ativos (não deletados) em receipts do usuário
 	err := db.Distinct("products.*").
@@ -42,13 +42,13 @@ func GetProductsHandler(ctx *gin.Context) {
 		Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
 		Where("receipts.user_id = ?", userID).
 		Find(&products).Error
-	
+
 	if err != nil {
 		logger.ErrorF("error getting products: %v", err.Error())
 		sendError(ctx, http.StatusInternalServerError, "Error getting products")
 		return
 	}
-	
+
 	ctx.JSON(http.StatusOK, products)
 }
 
@@ -66,19 +66,19 @@ func GetProductsHandler(ctx *gin.Context) {
 func GetProductByIDHandler(ctx *gin.Context) {
 	id := ctx.Param("id")
 	userID, _ := ctx.Get("user_id")
-	
+
 	var product schemas.Product
 	// Busca apenas se o produto estiver em algum item ativo do usuário
 	err := db.Joins("INNER JOIN receipt_items ON receipt_items.product_id = products.id").
 		Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
 		Where("products.id = ? AND receipts.user_id = ?", id, userID).
 		First(&product).Error
-	
+
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "Produto não encontrado ou você não tem acesso a ele"})
 		return
 	}
-	
+
 	ctx.JSON(http.StatusOK, product)
 }
 
@@ -95,7 +95,7 @@ func GetProductByIDHandler(ctx *gin.Context) {
 func GetProductsByDateHandler(ctx *gin.Context) {
 	dateStr := ctx.Param("date")
 	userID, _ := ctx.Get("user_id")
-	
+
 	_, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Formato de data inválido. Use YYYY-MM-DD"})
@@ -109,13 +109,13 @@ func GetProductsByDateHandler(ctx *gin.Context) {
 		Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
 		Where("receipts.user_id = ? AND receipts.date = ?", userID, dateStr).
 		Find(&products).Error
-	
+
 	if err != nil {
 		logger.ErrorF("error getting products by date: %v", err.Error())
 		sendError(ctx, http.StatusInternalServerError, "Error getting products")
 		return
 	}
-	
+
 	ctx.JSON(http.StatusOK, products)
 }
 
@@ -322,12 +322,12 @@ func GetProductsByPeriodHandler(ctx *gin.Context) {
 		Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
 		Where("receipts.user_id = ? AND receipts.date >= ? AND receipts.date <= ?", userID, startStr, endStr).
 		Find(&products).Error
-	
+
 	if err != nil {
 		logger.ErrorF("error getting products by period: %v", err.Error())
 		sendError(ctx, http.StatusInternalServerError, "Error getting products")
 		return
 	}
-	
+
 	ctx.JSON(http.StatusOK, products)
 }
