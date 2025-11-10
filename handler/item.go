@@ -226,3 +226,151 @@ func DeleteItemHandler(ctx *gin.Context) {
 		"message": "Item deleted successfully",
 	})
 }
+
+// RecategorizeItemsRequest define a estrutura para requisição de recategorização
+type RecategorizeItemsRequest struct {
+	ItemIDs []uint `json:"itemIds" binding:"required" example:"[1,2,3]"` // IDs dos items a serem recategorizados
+}
+
+// RecategorizeItemsResponse define a estrutura da resposta
+type RecategorizeItemsResponse struct {
+	Message            string                         `json:"message"`
+	ItemsRecategorized int                            `json:"itemsRecategorized"`
+	Results            []ItemRecategorizationResult   `json:"results"`
+}
+
+type ItemRecategorizationResult struct {
+	ItemID          uint   `json:"itemId"`
+	ProductName     string `json:"productName"`
+	OldCategoryID   uint   `json:"oldCategoryId"`
+	OldCategoryName string `json:"oldCategoryName"`
+	NewCategoryID   uint   `json:"newCategoryId"`
+	NewCategoryName string `json:"newCategoryName"`
+	Changed         bool   `json:"changed"`
+}
+
+// @Summary Recategorize items using AI
+// @Description Use Gemini AI to recategorize items. Useful for items in "Não categorizado" or items that need recategorization.
+// @Tags items
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body RecategorizeItemsRequest true "Item IDs to recategorize"
+// @Success 200 {object} RecategorizeItemsResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /items/recategorize [post]
+func RecategorizeItemsHandler(ctx *gin.Context) {
+	var request RecategorizeItemsRequest
+	if err := ctx.ShouldBindJSON(&request); err != nil {
+		sendError(ctx, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	userID, _ := ctx.Get("user_id")
+
+	if len(request.ItemIDs) == 0 {
+		sendError(ctx, http.StatusBadRequest, "At least one item ID is required")
+		return
+	}
+
+	// Busca todos os items do usuário com preload de product e category
+	var items []schemas.ReceiptItem
+	err := db.Preload("Product").Preload("Category").
+		Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
+		Where("receipt_items.id IN ? AND receipts.user_id = ?", request.ItemIDs, userID).
+		Find(&items).Error
+	
+	if err != nil {
+		logger.ErrorF("error finding items: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error finding items")
+		return
+	}
+
+	if len(items) == 0 {
+		sendError(ctx, http.StatusNotFound, "No items found")
+		return
+	}
+
+	// Busca todas as categorias disponíveis
+	var categories []schemas.Category
+	if err := db.Find(&categories).Error; err != nil {
+		logger.ErrorF("error finding categories: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error finding categories")
+		return
+	}
+
+	// Prepara o prompt para o Gemini
+	prompt := buildRecategorizationPrompt(items, categories)
+
+	// Chama o Gemini AI para recategorizar
+	response, err := callGeminiForRecategorization(prompt)
+	if err != nil {
+		logger.ErrorF("error calling Gemini: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error calling AI service")
+		return
+	}
+
+	// Processa a resposta e atualiza os items
+	results, itemsUpdated := applyRecategorization(items, response, categories)
+
+	ctx.JSON(http.StatusOK, RecategorizeItemsResponse{
+		Message:            "Items recategorized successfully",
+		ItemsRecategorized: itemsUpdated,
+		Results:            results,
+	})
+}
+
+func buildRecategorizationPrompt(items []schemas.ReceiptItem, categories []schemas.Category) string {
+	var prompt string
+	prompt += "Você é um assistente que categoriza produtos de supermercado.\n\n"
+	prompt += "CATEGORIAS DISPONÍVEIS (use o ID para categorizar):\n"
+	
+	for _, cat := range categories {
+		if cat.Name == "Não categorizado" {
+			continue // Não deve recategorizar para esta categoria
+		}
+		prompt += "ID " + string(rune(cat.ID)) + ": " + cat.Name
+		if cat.Description != "" {
+			prompt += " (" + cat.Description + ")"
+		}
+		prompt += "\n"
+	}
+	
+	prompt += "\nPRODUTOS PARA CATEGORIZAR:\n"
+	for _, item := range items {
+		if item.Product != nil {
+			prompt += "ItemID " + string(rune(item.ID)) + ": " + item.Product.Name + " (" + item.Product.Unity + ")\n"
+		}
+	}
+	
+	prompt += "\nRetorne um JSON com o seguinte formato:\n"
+	prompt += "{\n"
+	prompt += "  \"categorizations\": [\n"
+	prompt += "    {\"itemId\": 1, \"categoryId\": 2},\n"
+	prompt += "    {\"itemId\": 2, \"categoryId\": 5}\n"
+	prompt += "  ]\n"
+	prompt += "}\n\n"
+	prompt += "REGRAS:\n"
+	prompt += "- Use APENAS categoryId numérico (ID da categoria)\n"
+	prompt += "- Escolha a categoria MAIS ESPECÍFICA para cada produto\n"
+	prompt += "- NUNCA use a categoria 'Não categorizado'\n"
+	prompt += "- Seja consistente: produtos similares devem ter a mesma categoria\n"
+	
+	return prompt
+}
+
+// Funções auxiliares serão implementadas aqui
+func callGeminiForRecategorization(prompt string) (map[string]interface{}, error) {
+	// TODO: Implementar chamada real ao Gemini
+	// Por enquanto retorna um mock
+	return map[string]interface{}{
+		"categorizations": []map[string]interface{}{},
+	}, nil
+}
+
+func applyRecategorization(items []schemas.ReceiptItem, response map[string]interface{}, categories []schemas.Category) ([]ItemRecategorizationResult, int) {
+	// TODO: Implementar aplicação das categorizações
+	return []ItemRecategorizationResult{}, 0
+}

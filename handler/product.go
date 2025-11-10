@@ -23,15 +23,39 @@ type UpdateProductRequest struct {
 // @Security BearerAuth
 // @Success 200 {array} schemas.ProductResponse
 // @Router /products [get]
+// GetProductsHandler lida com a requisição para listar todos os produtos cadastrados no sistema.
+// Retorna apenas produtos que possuem items ativos (não deletados) do usuário
+// @Summary Listar todos os produtos
+// @Description Lista todos os produtos que o usuário possui em suas notas fiscais ativas
+// @Tags products
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {array} schemas.ProductResponse
+// @Router /products [get]
 func GetProductsHandler(ctx *gin.Context) {
+	userID, _ := ctx.Get("user_id")
+	
 	var products []schemas.Product
-	db.Find(&products)
+	// Busca apenas produtos que tenham items ativos (não deletados) em receipts do usuário
+	err := db.Distinct("products.*").
+		Joins("INNER JOIN receipt_items ON receipt_items.product_id = products.id").
+		Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
+		Where("receipts.user_id = ?", userID).
+		Find(&products).Error
+	
+	if err != nil {
+		logger.ErrorF("error getting products: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error getting products")
+		return
+	}
+	
 	ctx.JSON(http.StatusOK, products)
 }
 
 // GetProductByIDHandler lida com a requisição para buscar um produto pelo seu ID.
+// Verifica se o produto pertence ao usuário através de receipt_items ativos
 // @Summary Buscar produto por ID
-// @Description Busca produto pelo ID
+// @Description Busca produto pelo ID (apenas se o usuário tiver este produto em alguma nota ativa)
 // @Tags products
 // @Produce json
 // @Security BearerAuth
@@ -41,18 +65,27 @@ func GetProductsHandler(ctx *gin.Context) {
 // @Router /products/{id} [get]
 func GetProductByIDHandler(ctx *gin.Context) {
 	id := ctx.Param("id")
+	userID, _ := ctx.Get("user_id")
+	
 	var product schemas.Product
-
-	if err := db.Where("id = ?", id).First(&product).Error; err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Produto não encontrado"})
+	// Busca apenas se o produto estiver em algum item ativo do usuário
+	err := db.Joins("INNER JOIN receipt_items ON receipt_items.product_id = products.id").
+		Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
+		Where("products.id = ? AND receipts.user_id = ?", id, userID).
+		First(&product).Error
+	
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Produto não encontrado ou você não tem acesso a ele"})
 		return
 	}
+	
 	ctx.JSON(http.StatusOK, product)
 }
 
 // GetProductsByDateHandler busca todos os produtos de uma data específica
+// Retorna produtos que foram comprados (têm items) na data especificada
 // @Summary Buscar produtos por data
-// @Description Retorna todos os produtos criados em uma data específica (YYYY-MM-DD)
+// @Description Retorna todos os produtos comprados em uma data específica (YYYY-MM-DD) através de notas fiscais
 // @Tags products
 // @Produce json
 // @Security BearerAuth
@@ -61,17 +94,28 @@ func GetProductByIDHandler(ctx *gin.Context) {
 // @Router /products/date/{date} [get]
 func GetProductsByDateHandler(ctx *gin.Context) {
 	dateStr := ctx.Param("date")
-	d, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
+	userID, _ := ctx.Get("user_id")
+	
+	_, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Formato de data inválido. Use YYYY-MM-DD"})
 		return
 	}
 
-	start := d
-	end := d.Add(24 * time.Hour)
-
 	var products []schemas.Product
-	db.Where("created_at >= ? AND created_at < ?", start, end).Find(&products)
+	// Busca produtos através de receipt_items de receipts da data específica
+	err = db.Distinct("products.*").
+		Joins("INNER JOIN receipt_items ON receipt_items.product_id = products.id").
+		Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
+		Where("receipts.user_id = ? AND receipts.date = ?", userID, dateStr).
+		Find(&products).Error
+	
+	if err != nil {
+		logger.ErrorF("error getting products by date: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error getting products")
+		return
+	}
+	
 	ctx.JSON(http.StatusOK, products)
 }
 
@@ -176,19 +220,36 @@ func DeleteProductHandler(ctx *gin.Context) {
 		}
 	}()
 
-	// 1. Soft delete APENAS dos receipt_items do usuário que usam este produto
-	result := tx.Where("product_id = ? AND receipt_id IN (SELECT id FROM receipts WHERE user_id = ?)", product.ID, userID).
-		Delete(&schemas.ReceiptItem{})
-	if result.Error != nil {
+	// 1. Buscar IDs dos receipts do usuário usando GORM
+	var userReceipts []schemas.Receipt
+	if err := tx.Where("user_id = ?", userID).Select("id").Find(&userReceipts).Error; err != nil {
 		tx.Rollback()
-		logger.ErrorF("error deleting receipt items: %v", result.Error.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error deleting receipt items")
+		logger.ErrorF("error finding user receipts: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error finding user receipts")
 		return
 	}
-	itemsDeleted := result.RowsAffected
-	logger.InfoF("Soft deleted %d receipt items for product %d", itemsDeleted, product.ID)
 
-	// 2. Verifica se ainda há items de outros usuários usando este produto
+	var receiptIDs []uint
+	for _, receipt := range userReceipts {
+		receiptIDs = append(receiptIDs, receipt.ID)
+	}
+
+	// 2. Soft delete APENAS dos receipt_items do usuário que usam este produto
+	var itemsDeleted int64
+	if len(receiptIDs) > 0 {
+		result := tx.Where("product_id = ? AND receipt_id IN ?", product.ID, receiptIDs).
+			Delete(&schemas.ReceiptItem{})
+		if result.Error != nil {
+			tx.Rollback()
+			logger.ErrorF("error deleting receipt items: %v", result.Error.Error())
+			sendError(ctx, http.StatusInternalServerError, "Error deleting receipt items")
+			return
+		}
+		itemsDeleted = result.RowsAffected
+		logger.InfoF("Soft deleted %d receipt items for product %d", itemsDeleted, product.ID)
+	}
+
+	// 3. Verifica se ainda há items de outros usuários usando este produto
 	var remainingItems int64
 	if err := tx.Model(&schemas.ReceiptItem{}).Where("product_id = ?", product.ID).Count(&remainingItems).Error; err != nil {
 		tx.Rollback()
@@ -197,7 +258,7 @@ func DeleteProductHandler(ctx *gin.Context) {
 		return
 	}
 
-	// 3. Se não há mais items usando este produto, pode deletar o produto
+	// 4. Se não há mais items usando este produto, pode deletar o produto
 	if remainingItems == 0 {
 		if err := tx.Delete(&product).Error; err != nil {
 			tx.Rollback()
@@ -226,40 +287,47 @@ func DeleteProductHandler(ctx *gin.Context) {
 }
 
 // GetProductsByPeriodHandler busca todos os produtos dentro de um período de tempo
+// Retorna produtos que foram comprados (têm items) no período especificado
 // @Summary Buscar produtos por período
-// @Description Retorna todos os produtos criados entre as query params `start` e `end` (RFC3339 ou YYYY-MM-DD). Ambos são obrigatórios.
+// @Description Retorna todos os produtos comprados entre as query params `start` e `end` (YYYY-MM-DD). Ambos são obrigatórios.
 // @Tags products
 // @Produce json
 // @Security BearerAuth
-// @Param start query string true "Data/hora inicial (RFC3339 ou YYYY-MM-DD)"
-// @Param end query string true "Data/hora final (RFC3339 ou YYYY-MM-DD)"
+// @Param start query string true "Data inicial (YYYY-MM-DD)"
+// @Param end query string true "Data final (YYYY-MM-DD)"
 // @Success 200 {array} schemas.ProductResponse
 // @Router /products/period [get]
 func GetProductsByPeriodHandler(ctx *gin.Context) {
 	startStr := ctx.Query("start")
 	endStr := ctx.Query("end")
+	userID, _ := ctx.Get("user_id")
 
 	if startStr == "" || endStr == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Query params 'start' e 'end' são obrigatórios"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Query params 'start' e 'end' são obrigatórios (formato YYYY-MM-DD)"})
 		return
 	}
 
-	// Tenta parsear como RFC3339, se falhar tenta YYYY-MM-DD
-	start, err1 := time.Parse(time.RFC3339, startStr)
-	end, err2 := time.Parse(time.RFC3339, endStr)
+	// Valida formato das datas
+	_, err1 := time.ParseInLocation("2006-01-02", startStr, time.Local)
+	_, err2 := time.ParseInLocation("2006-01-02", endStr, time.Local)
 	if err1 != nil || err2 != nil {
-		s, errS := time.ParseInLocation("2006-01-02", startStr, time.Local)
-		e, errE := time.ParseInLocation("2006-01-02", endStr, time.Local)
-		if errS != nil || errE != nil {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Formato de data inválido. Use RFC3339 ou YYYY-MM-DD"})
-			return
-		}
-		start = s
-		// para incluir o dia final até 23:59:59
-		end = e.Add(24 * time.Hour)
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Formato de data inválido. Use YYYY-MM-DD"})
+		return
 	}
 
 	var products []schemas.Product
-	db.Where("created_at >= ? AND created_at < ?", start, end).Find(&products)
+	// Busca produtos através de receipt_items de receipts no período
+	err := db.Distinct("products.*").
+		Joins("INNER JOIN receipt_items ON receipt_items.product_id = products.id").
+		Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
+		Where("receipts.user_id = ? AND receipts.date >= ? AND receipts.date <= ?", userID, startStr, endStr).
+		Find(&products).Error
+	
+	if err != nil {
+		logger.ErrorF("error getting products by period: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error getting products")
+		return
+	}
+	
 	ctx.JSON(http.StatusOK, products)
 }

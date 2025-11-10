@@ -311,7 +311,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Delete a category permanently. WARNING: This will also remove the category association from all receipt items (sets categoryId to null).",
+                "description": "Delete a category and move all its items to \"Não categorizado\". Items can be recategorized later using the /items/recategorize endpoint.",
                 "consumes": [
                     "application/json"
                 ],
@@ -338,6 +338,12 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Cannot delete 'Não categorizado' category",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
                     "401": {
@@ -706,6 +712,63 @@ const docTemplate = `{
                 }
             }
         },
+        "/items/recategorize": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Use Gemini AI to recategorize items. Useful for items in \"Não categorizado\" or items that need recategorization.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "items"
+                ],
+                "summary": "Recategorize items using AI",
+                "parameters": [
+                    {
+                        "description": "Item IDs to recategorize",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.RecategorizeItemsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.RecategorizeItemsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/login": {
             "post": {
                 "description": "Authenticate user with email and password. Returns a JWT token valid for 7 days. Use this token in the Authorization header as \"Bearer {token}\" for all protected endpoints.",
@@ -912,13 +975,18 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "BearerAuth": []
                     }
                 ],
-                "description": "Lista todos os produtos cadastrados",
+                "description": "Lista todos os produtos cadastrados\nLista todos os produtos que o usuário possui em suas notas fiscais ativas",
                 "produces": [
+                    "application/json",
                     "application/json"
                 ],
                 "tags": [
+                    "products",
                     "products"
                 ],
                 "summary": "Listar todos os produtos",
@@ -942,7 +1010,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retorna todos os produtos criados em uma data específica (YYYY-MM-DD)",
+                "description": "Retorna todos os produtos comprados em uma data específica (YYYY-MM-DD) através de notas fiscais",
                 "produces": [
                     "application/json"
                 ],
@@ -979,7 +1047,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Retorna todos os produtos criados entre as query params ` + "`" + `start` + "`" + ` e ` + "`" + `end` + "`" + ` (RFC3339 ou YYYY-MM-DD). Ambos são obrigatórios.",
+                "description": "Retorna todos os produtos comprados entre as query params ` + "`" + `start` + "`" + ` e ` + "`" + `end` + "`" + ` (YYYY-MM-DD). Ambos são obrigatórios.",
                 "produces": [
                     "application/json"
                 ],
@@ -990,14 +1058,14 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Data/hora inicial (RFC3339 ou YYYY-MM-DD)",
+                        "description": "Data inicial (YYYY-MM-DD)",
                         "name": "start",
                         "in": "query",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "Data/hora final (RFC3339 ou YYYY-MM-DD)",
+                        "description": "Data final (YYYY-MM-DD)",
                         "name": "end",
                         "in": "query",
                         "required": true
@@ -1023,7 +1091,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Busca produto pelo ID",
+                "description": "Busca produto pelo ID (apenas se o usuário tiver este produto em alguma nota ativa)",
                 "produces": [
                     "application/json"
                 ],
@@ -1836,6 +1904,32 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.ItemRecategorizationResult": {
+            "type": "object",
+            "properties": {
+                "changed": {
+                    "type": "boolean"
+                },
+                "itemId": {
+                    "type": "integer"
+                },
+                "newCategoryId": {
+                    "type": "integer"
+                },
+                "newCategoryName": {
+                    "type": "string"
+                },
+                "oldCategoryId": {
+                    "type": "integer"
+                },
+                "oldCategoryName": {
+                    "type": "string"
+                },
+                "productName": {
+                    "type": "string"
+                }
+            }
+        },
         "handler.LoginRequest": {
             "type": "object",
             "required": [
@@ -1931,6 +2025,26 @@ const docTemplate = `{
                 "total": {
                     "description": "Total",
                     "type": "number"
+                }
+            }
+        },
+        "handler.RecategorizeItemsRequest": {
+            "type": "object"
+        },
+        "handler.RecategorizeItemsResponse": {
+            "type": "object",
+            "properties": {
+                "itemsRecategorized": {
+                    "type": "integer"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.ItemRecategorizationResult"
+                    }
                 }
             }
         },

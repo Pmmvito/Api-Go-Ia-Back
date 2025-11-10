@@ -74,6 +74,8 @@ func InitializeRoutes(router *gin.Engine) {
 		protected.DELETE("/item/:id", handler.DeleteItemHandler)
 		// Buscar itens por período (query params: start, end)
 		protected.GET("/items/period", handler.GetItemsByPeriodHandler)
+		// 🤖 Recategorizar items usando IA
+		protected.POST("/items/recategorize", handler.RecategorizeItemsHandler)
 
 		// 🆕 QR Code Flow (2 etapas)
 		protected.POST("/scan-qrcode/preview", handler.ScanQRCodePreviewHandler) // Etapa 1: Preview (não salva)

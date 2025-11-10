@@ -57,6 +57,7 @@ func createDefaultCategories(db *gorm.DB, logger *Logger) {
 	// Categorias padrão reformuladas para serem DISTINTAS e não confundir a IA
 	// Cada categoria tem um foco ÚNICO e específico
 	defaultCategories := []schemas.Category{
+		{Name: "Não categorizado", Description: "Itens aguardando categorização", Icon: "❓", Color: "#95A5A6"},
 		{Name: "Grãos e Cereais", Description: "Arroz, feijão, lentilha, aveia, granola, cereais matinais", Icon: "🌾", Color: "#F4A261"},
 		{Name: "Massas", Description: "Macarrão, lasanha, nhoque, massas secas e frescas", Icon: "🍝", Color: "#E9C46A"},
 		{Name: "Padaria", Description: "Pães, baguetes, brioche, croissant, pão de forma", Icon: "🍞", Color: "#D4A574"},

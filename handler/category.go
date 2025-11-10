@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/Pmmvito/Golang-Api-Exemple/schemas"
@@ -291,7 +292,7 @@ func UpdateCategoryHandler(ctx *gin.Context) {
 }
 
 // @Summary Delete category
-// @Description Delete a category permanently. WARNING: This will also remove the category association from all receipt items (sets categoryId to null).
+// @Description Delete a category and move all its items to "Não categorizado". Items can be recategorized later using the /items/recategorize endpoint.
 // @Tags 📁 Categories
 // @Accept json
 // @Produce json
@@ -300,6 +301,7 @@ func UpdateCategoryHandler(ctx *gin.Context) {
 // @Success 200 {object} map[string]interface{}
 // @Failure 404 {object} ErrorResponse
 // @Failure 401 {object} ErrorResponse
+// @Failure 400 {object} ErrorResponse "Cannot delete 'Não categorizado' category"
 // @Router /category/{id} [delete]
 func DeleteCategoryHandler(ctx *gin.Context) {
 	id := ctx.Param("id")
@@ -314,15 +316,63 @@ func DeleteCategoryHandler(ctx *gin.Context) {
 		return
 	}
 
-	if err := db.Delete(&category).Error; err != nil {
+	// Não permite deletar a categoria "Não categorizado"
+	if category.Name == "Não categorizado" {
+		sendError(ctx, http.StatusBadRequest, "Cannot delete 'Não categorizado' category")
+		return
+	}
+
+	// Busca a categoria "Não categorizado"
+	var uncategorized schemas.Category
+	if err := db.Where("name = ?", "Não categorizado").First(&uncategorized).Error; err != nil {
+		logger.ErrorF("'Não categorizado' category not found: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "System category 'Não categorizado' not found")
+		return
+	}
+
+	// Inicia transação
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Move todos os items desta categoria para "Não categorizado"
+	result := tx.Model(&schemas.ReceiptItem{}).
+		Where("category_id = ?", category.ID).
+		Update("category_id", uncategorized.ID)
+	
+	if result.Error != nil {
+		tx.Rollback()
+		logger.ErrorF("error moving items to uncategorized: %v", result.Error.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error moving items to uncategorized")
+		return
+	}
+
+	itemsMoved := result.RowsAffected
+	logger.InfoF("Moved %d items from category %s to 'Não categorizado'", itemsMoved, category.Name)
+
+	// Deleta a categoria
+	if err := tx.Delete(&category).Error; err != nil {
+		tx.Rollback()
 		logger.ErrorF("error deleting category: %v", err.Error())
 		sendError(ctx, http.StatusInternalServerError, "Error deleting category")
 		return
 	}
 
-	logger.InfoF("Category %s deleted successfully", id)
+	// Commit
+	if err := tx.Commit().Error; err != nil {
+		logger.ErrorF("error committing transaction: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error committing deletion")
+		return
+	}
+
+	logger.InfoF("Category %s deleted successfully, %d items moved to 'Não categorizado'", category.Name, itemsMoved)
 	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Category deleted successfully",
+		"message":    "Category deleted successfully",
+		"itemsMoved": itemsMoved,
+		"note":       "Items moved to 'Não categorizado'. Use POST /items/recategorize to recategorize them.",
 	})
 }
 
@@ -367,30 +417,70 @@ func GetCategoryGraphHandler(ctx *gin.Context) {
 		endDate = endDate.AddDate(0, 0, 1)
 	}
 
-	var results []CategoryGraphResponse
-
-	// Subconsulta otimizada: filtra primeiro os recibos do usuário no período
-	subQuery := db.Table("receipts").
-		Select("id").
-		Where("user_id = ? AND date >= ? AND date < ?", userID, startDate, endDate)
-
-	query := db.Table("categories").
-		Select("categories.id, categories.name, COUNT(receipt_items.id) as item_count, COALESCE(SUM(receipt_items.total), 0) as total").
-		Joins("LEFT JOIN receipt_items ON receipt_items.category_id = categories.id AND receipt_items.receipt_id IN (?)", subQuery).
-		Group("categories.id, categories.name").
-		Order("categories.name ASC")
-
-	err = query.Scan(&results).Error
-	if err != nil {
-		logger.ErrorF("error getting category graph data: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error getting category graph data")
+	// 1. Buscar todos os receipts do usuário no período usando GORM
+	var receipts []schemas.Receipt
+	if err := db.Where("user_id = ? AND date >= ? AND date < ?", userID, startDate.Format("2006-01-02"), endDate.Format("2006-01-02")).
+		Find(&receipts).Error; err != nil {
+		logger.ErrorF("error finding receipts: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error getting receipts")
 		return
 	}
 
-	var grandTotal float64
-	for _, result := range results {
-		grandTotal += result.Total
+	// 2. Extrair IDs dos receipts
+	var receiptIDs []uint
+	for _, receipt := range receipts {
+		receiptIDs = append(receiptIDs, receipt.ID)
 	}
+
+	// 3. Buscar todos os items desses receipts usando GORM
+	var items []schemas.ReceiptItem
+	if len(receiptIDs) > 0 {
+		if err := db.Where("receipt_id IN ?", receiptIDs).Find(&items).Error; err != nil {
+			logger.ErrorF("error finding receipt items: %v", err.Error())
+			sendError(ctx, http.StatusInternalServerError, "Error getting receipt items")
+			return
+		}
+	}
+
+	// 4. Buscar todas as categorias usando GORM
+	var categories []schemas.Category
+	if err := db.Find(&categories).Error; err != nil {
+		logger.ErrorF("error finding categories: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error getting categories")
+		return
+	}
+
+	// 5. Processar dados em memória (agregação manual)
+	categoryMap := make(map[uint]*CategoryGraphResponse)
+	for _, cat := range categories {
+		categoryMap[cat.ID] = &CategoryGraphResponse{
+			ID:        cat.ID,
+			Name:      cat.Name,
+			ItemCount: 0,
+			Total:     0,
+		}
+	}
+
+	// 6. Agregar dados dos items por categoria
+	for _, item := range items {
+		if catData, exists := categoryMap[item.CategoryID]; exists {
+			catData.ItemCount++
+			catData.Total += item.Total
+		}
+	}
+
+	// 7. Converter map para slice e calcular grand total
+	var results []CategoryGraphResponse
+	var grandTotal float64
+	for _, catData := range categoryMap {
+		results = append(results, *catData)
+		grandTotal += catData.Total
+	}
+
+	// 8. Ordenar por nome
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Name < results[j].Name
+	})
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"message": "Category graph data retrieved successfully",

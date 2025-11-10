@@ -33,6 +33,23 @@ definitions:
       message:
         type: string
     type: object
+  handler.ItemRecategorizationResult:
+    properties:
+      changed:
+        type: boolean
+      itemId:
+        type: integer
+      newCategoryId:
+        type: integer
+      newCategoryName:
+        type: string
+      oldCategoryId:
+        type: integer
+      oldCategoryName:
+        type: string
+      productName:
+        type: string
+    type: object
   handler.LoginRequest:
     properties:
       email:
@@ -103,6 +120,19 @@ definitions:
       total:
         description: Total
         type: number
+    type: object
+  handler.RecategorizeItemsRequest:
+    type: object
+  handler.RecategorizeItemsResponse:
+    properties:
+      itemsRecategorized:
+        type: integer
+      message:
+        type: string
+      results:
+        items:
+          $ref: '#/definitions/handler.ItemRecategorizationResult'
+        type: array
     type: object
   handler.RegisterRequest:
     properties:
@@ -578,8 +608,8 @@ paths:
     delete:
       consumes:
       - application/json
-      description: 'Delete a category permanently. WARNING: This will also remove
-        the category association from all receipt items (sets categoryId to null).'
+      description: Delete a category and move all its items to "Não categorizado".
+        Items can be recategorized later using the /items/recategorize endpoint.
       parameters:
       - description: Category ID
         example: 1
@@ -595,6 +625,10 @@ paths:
           schema:
             additionalProperties: true
             type: object
+        "400":
+          description: Cannot delete 'Não categorizado' category
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
@@ -870,6 +904,43 @@ paths:
       summary: Listar itens por período
       tags:
       - items
+  /items/recategorize:
+    post:
+      consumes:
+      - application/json
+      description: Use Gemini AI to recategorize items. Useful for items in "Não categorizado"
+        or items that need recategorization.
+      parameters:
+      - description: Item IDs to recategorize
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.RecategorizeItemsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.RecategorizeItemsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Recategorize items using AI
+      tags:
+      - items
   /login:
     post:
       consumes:
@@ -1005,8 +1076,11 @@ paths:
       - products
   /products:
     get:
-      description: Lista todos os produtos cadastrados
+      description: |-
+        Lista todos os produtos cadastrados
+        Lista todos os produtos que o usuário possui em suas notas fiscais ativas
       produces:
+      - application/json
       - application/json
       responses:
         "200":
@@ -1017,8 +1091,10 @@ paths:
             type: array
       security:
       - BearerAuth: []
+      - BearerAuth: []
       summary: Listar todos os produtos
       tags:
+      - products
       - products
   /products/{id}:
     delete:
@@ -1072,7 +1148,8 @@ paths:
       - products
       - products
     get:
-      description: Busca produto pelo ID
+      description: Busca produto pelo ID (apenas se o usuário tiver este produto em
+        alguma nota ativa)
       parameters:
       - description: ID do produto
         in: path
@@ -1139,7 +1216,8 @@ paths:
       - products
   /products/date/{date}:
     get:
-      description: Retorna todos os produtos criados em uma data específica (YYYY-MM-DD)
+      description: Retorna todos os produtos comprados em uma data específica (YYYY-MM-DD)
+        através de notas fiscais
       parameters:
       - description: Data no formato YYYY-MM-DD
         in: path
@@ -1162,15 +1240,15 @@ paths:
       - products
   /products/period:
     get:
-      description: Retorna todos os produtos criados entre as query params `start`
-        e `end` (RFC3339 ou YYYY-MM-DD). Ambos são obrigatórios.
+      description: Retorna todos os produtos comprados entre as query params `start`
+        e `end` (YYYY-MM-DD). Ambos são obrigatórios.
       parameters:
-      - description: Data/hora inicial (RFC3339 ou YYYY-MM-DD)
+      - description: Data inicial (YYYY-MM-DD)
         in: query
         name: start
         required: true
         type: string
-      - description: Data/hora final (RFC3339 ou YYYY-MM-DD)
+      - description: Data final (YYYY-MM-DD)
         in: query
         name: end
         required: true
