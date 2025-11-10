@@ -19,7 +19,7 @@ type User struct {
 	ShoppingLists []ShoppingList `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"` // Relacionamento HasMany com ShoppingLists
 }
 
-// UserResponse define a estrutura de dados do usuário para respostas da API, omitindo a senha.
+// UserResponse define a estrutura de dados do usuário para respostas da API, omitindo a senha..
 type UserResponse struct {
 	ID        uint      `json:"id"`
 	CreatedAt time.Time `json:"createdAt"`
