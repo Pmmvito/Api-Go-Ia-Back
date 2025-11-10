@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Pmmvito/Golang-Api-Exemple/schemas"
@@ -323,42 +325,87 @@ func RecategorizeItemsHandler(ctx *gin.Context) {
 }
 
 func buildRecategorizationPrompt(items []schemas.ReceiptItem, categories []schemas.Category) string {
-	var prompt string
-	prompt += "Você é um assistente que categoriza produtos de supermercado.\n\n"
-	prompt += "CATEGORIAS DISPONÍVEIS (use o ID para categorizar):\n"
+	var builder strings.Builder
 
+	builder.WriteString("Você é um assistente de finanças que recategoriza produtos de compras.\n")
+	builder.WriteString("IMPORTANTE: Retorne APENAS um JSON válido e bem formatado, sem comentários, texto adicional ou vírgulas extras.\n")
+	builder.WriteString("IDIOMA: Todas as descrições devem estar em PORTUGUÊS (PT-BR).\n\n")
+
+	builder.WriteString("Formato esperado:\n")
+	builder.WriteString("{\n")
+	builder.WriteString("  \"categorizations\": [\n")
+	builder.WriteString("    {\n")
+	builder.WriteString("      \"itemId\": number - ID do item,\n")
+	builder.WriteString("      \"categoryId\": number - ID da categoria (apenas o número, não o nome)\n")
+	builder.WriteString("    }\n")
+	builder.WriteString("  ]\n")
+	builder.WriteString("}\n\n")
+
+	// Adiciona lista de categorias disponíveis COM IDs
+	builder.WriteString("CATEGORIAS DISPONÍVEIS (use o ID para categoryId):\n")
 	for _, cat := range categories {
 		if cat.Name == "Não categorizado" {
 			continue // Não deve recategorizar para esta categoria
 		}
-		prompt += "ID " + string(rune(cat.ID)) + ": " + cat.Name
-		if cat.Description != "" {
-			prompt += " (" + cat.Description + ")"
+		builder.WriteString(fmt.Sprintf("ID %d: %s", cat.ID, cat.Name))
+		if cat.Icon != "" {
+			builder.WriteString(fmt.Sprintf(" %s", cat.Icon))
 		}
-		prompt += "\n"
+		if cat.Description != "" {
+			builder.WriteString(fmt.Sprintf(" (%s)", cat.Description))
+		}
+		builder.WriteString("\n")
 	}
+	builder.WriteString("\n")
 
-	prompt += "\nPRODUTOS PARA CATEGORIZAR:\n"
+	// Lista os produtos que precisam ser recategorizados
+	builder.WriteString("PRODUTOS PARA CATEGORIZAR:\n")
 	for _, item := range items {
 		if item.Product != nil {
-			prompt += "ItemID " + string(rune(item.ID)) + ": " + item.Product.Name + " (" + item.Product.Unity + ")\n"
+			builder.WriteString(fmt.Sprintf("ItemID %d: %s", item.ID, item.Product.Name))
+			if item.Product.Unity != "" {
+				builder.WriteString(fmt.Sprintf(" (%s)", item.Product.Unity))
+			}
+			builder.WriteString("\n")
 		}
 	}
+	builder.WriteString("\n")
 
-	prompt += "\nRetorne um JSON com o seguinte formato:\n"
-	prompt += "{\n"
-	prompt += "  \"categorizations\": [\n"
-	prompt += "    {\"itemId\": 1, \"categoryId\": 2},\n"
-	prompt += "    {\"itemId\": 2, \"categoryId\": 5}\n"
-	prompt += "  ]\n"
-	prompt += "}\n\n"
-	prompt += "REGRAS:\n"
-	prompt += "- Use APENAS categoryId numérico (ID da categoria)\n"
-	prompt += "- Escolha a categoria MAIS ESPECÍFICA para cada produto\n"
-	prompt += "- NUNCA use a categoria 'Não categorizado'\n"
-	prompt += "- Seja consistente: produtos similares devem ter a mesma categoria\n"
+	builder.WriteString("Regras importantes:\n")
+	builder.WriteString("- NUNCA deixe vírgulas extras antes de fechar objetos } ou arrays ]\n")
+	builder.WriteString("- Garanta que o JSON seja válido e possa ser parseado sem erros\n")
+	builder.WriteString("- Para cada item, use categoryId com APENAS O NÚMERO do ID da categoria (ex: 1, 2, 3)\n")
+	builder.WriteString("- NÃO use o nome da categoria, APENAS o ID numérico\n")
+	builder.WriteString("- NUNCA use a categoria 'Não categorizado' para recategorização\n")
+	builder.WriteString("\n")
+	builder.WriteString("⚠️ CATEGORIZAÇÃO ÚNICA E PRECISA (REGRA CRÍTICA):\n")
+	builder.WriteString("  * CADA item deve estar em APENAS UMA categoria - escolha a MAIS ESPECÍFICA\n")
+	builder.WriteString("  * Analise o produto e identifique sua categoria PRINCIPAL e ÚNICA\n")
+	builder.WriteString("  * NUNCA coloque o mesmo produto em 2 categorias diferentes\n")
+	builder.WriteString("\n")
+	builder.WriteString("  📋 GUIA DE CATEGORIZAÇÃO (use para decidir):\n")
+	builder.WriteString("  • Cerveja, Vinho, Whisky → 'Bebidas Alcoólicas' (NÃO 'Bebidas')\n")
+	builder.WriteString("  • Café, Chá, Mate → 'Café e Chá' (NÃO 'Bebidas')\n")
+	builder.WriteString("  • Refrigerante, Suco, Água → 'Bebidas' (NÃO 'Café e Chá')\n")
+	builder.WriteString("  • Presunto, Mortadela, Salsicha → 'Frios e Embutidos' (NÃO 'Carnes e Proteínas')\n")
+	builder.WriteString("  • Frango, Carne Bovina, Peixe → 'Carnes e Proteínas' (NÃO 'Frios e Embutidos')\n")
+	builder.WriteString("  • Macarrão, Lasanha → 'Massas' (NÃO 'Padaria')\n")
+	builder.WriteString("  • Pão, Baguete → 'Padaria' (NÃO 'Massas')\n")
+	builder.WriteString("  • Chocolate, Bala, Sorvete → 'Doces e Sobremesas' (NÃO 'Salgadinhos e Snacks')\n")
+	builder.WriteString("  • Chips, Amendoim, Pipoca → 'Salgadinhos e Snacks' (NÃO 'Doces e Sobremesas')\n")
+	builder.WriteString("  • Azeite, Sal, Molho → 'Condimentos e Temperos' (NÃO 'Enlatados')\n")
+	builder.WriteString("  • Milho em lata, Atum em lata → 'Enlatados e Conservas' (NÃO 'Condimentos')\n")
+	builder.WriteString("  • Shampoo, Sabonete → 'Higiene Pessoal' (NÃO 'Limpeza Doméstica')\n")
+	builder.WriteString("  • Detergente, Desinfetante → 'Limpeza Doméstica' (NÃO 'Higiene Pessoal')\n")
+	builder.WriteString("  • Papel Higiênico, Guardanapo → 'Papel e Descartáveis' (NÃO 'Limpeza' ou 'Higiene')\n")
+	builder.WriteString("  • Pizza congelada, Vegetais congelados → 'Congelados' (NÃO 'Doces' mesmo que seja sorvete)\n")
+	builder.WriteString("\n")
+	builder.WriteString("  * Se ainda houver dúvida, escolha a categoria que descreve MELHOR o produto principal\n")
+	builder.WriteString("  * Use 'Outros' APENAS para produtos verdadeiramente únicos/raros que não se encaixam\n")
+	builder.WriteString("  * Seja CONSISTENTE: produtos iguais devem SEMPRE estar na mesma categoria\n")
+	builder.WriteString("\n")
 
-	return prompt
+	return builder.String()
 }
 
 // Funções auxiliares serão implementadas aqui
