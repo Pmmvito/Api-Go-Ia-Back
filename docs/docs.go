@@ -2029,7 +2029,19 @@ const docTemplate = `{
             }
         },
         "handler.RecategorizeItemsRequest": {
-            "type": "object"
+            "type": "object",
+            "required": [
+                "itemIds"
+            ],
+            "properties": {
+                "itemIds": {
+                    "description": "IDs dos items a serem recategorizados",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
         },
         "handler.RecategorizeItemsResponse": {
             "type": "object",

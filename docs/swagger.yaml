@@ -122,6 +122,14 @@ definitions:
         type: number
     type: object
   handler.RecategorizeItemsRequest:
+    properties:
+      itemIds:
+        description: IDs dos items a serem recategorizados
+        items:
+          type: integer
+        type: array
+    required:
+    - itemIds
     type: object
   handler.RecategorizeItemsResponse:
     properties:

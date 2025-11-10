@@ -231,7 +231,7 @@ func DeleteItemHandler(ctx *gin.Context) {
 
 // RecategorizeItemsRequest define a estrutura para requisição de recategorização
 type RecategorizeItemsRequest struct {
-	ItemIDs []uint `json:"itemIds" binding:"required" example:"[1,2,3]"` // IDs dos items a serem recategorizados
+	ItemIDs []uint `json:"itemIds" binding:"required"` // IDs dos items a serem recategorizados
 }
 
 // RecategorizeItemsResponse define a estrutura da resposta

@@ -7,6 +7,7 @@ import (
 
 	"github.com/Pmmvito/Golang-Api-Exemple/schemas"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // CreateCategoryRequest define os dados necessários para criar uma nova categoria.
@@ -81,7 +82,40 @@ func CreateCategoryHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Cria a categoria
+	// Verifica se existe uma categoria deletada com o mesmo nome
+	var existingCategory schemas.Category
+	err := db.Unscoped().Where("name = ?", request.Name).First(&existingCategory).Error
+	
+	if err == nil {
+		// Categoria encontrada - verifica se está deletada
+		if existingCategory.DeletedAt.Valid {
+			// Reativa a categoria deletada
+			existingCategory.DeletedAt = gorm.DeletedAt{}
+			existingCategory.Description = request.Description
+			existingCategory.Icon = request.Icon
+			existingCategory.Color = request.Color
+			
+			if err := db.Unscoped().Save(&existingCategory).Error; err != nil {
+				logger.ErrorF("error reactivating category: %v", err.Error())
+				sendError(ctx, http.StatusInternalServerError, "Error reactivating category")
+				return
+			}
+			
+			logger.InfoF("Category reactivated with ID: %d", existingCategory.ID)
+			ctx.JSON(http.StatusOK, gin.H{
+				"message": "Category reactivated successfully",
+				"data":    existingCategory.ToResponse(),
+			})
+			return
+		} else {
+			// Categoria já existe e está ativa
+			logger.ErrorF("category already exists: %s", request.Name)
+			sendError(ctx, http.StatusConflict, "Category with this name already exists")
+			return
+		}
+	}
+
+	// Categoria não existe, cria uma nova
 	category := schemas.Category{
 		Name:        request.Name,
 		Description: request.Description,
