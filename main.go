@@ -30,20 +30,17 @@ var (
 // @description 3. Clique em **Authorize** 🔓 (cadeado verde) e cole: `Bearer SEU_TOKEN`
 // @description 4. Agora você pode testar todos os endpoints protegidos!
 // @description
-// @description ## 🛒 Categorias de Supermercado (45+ categorias):
-// @description **Alimentos Básicos:** Grãos e Cereais, Massas, Farinhas
-// @description **Proteínas:** Carnes Vermelhas, Aves, Peixes, Frios e Embutidos
+// @description ## 🛒 Categorias de Supermercado (21 categorias distintas):
+// @description **Básicos:** Grãos e Cereais, Massas, Padaria
+// @description **Proteínas:** Carnes e Proteínas, Frios e Embutidos
 // @description **Laticínios:** Leite, Queijos, Iogurtes, Manteiga
-// @description **Hortifruti:** Frutas, Verduras, Legumes
-// @description **Padaria:** Pães, Bolos e Tortas, Biscoitos
-// @description **Bebidas:** Refrigerantes, Sucos, Água, Bebidas Alcoólicas, Cafés e Chás
-// @description **Congelados:** Congelados, Sorvetes
-// @description **Despensa:** Óleos, Temperos, Molhos, Enlatados
-// @description **Doces:** Chocolates, Doces e Balas, Sobremesas
-// @description **Snacks:** Salgadinhos, Lanches Rápidos
-// @description **Higiene:** Higiene Bucal, Corporal, Papel Higiênico, Fraldas
-// @description **Limpeza:** Limpeza Geral, Limpeza de Roupas, Descartáveis
-// @description **Outros:** Pet Shop, Alimentação Infantil, Utilidades Domésticas
+// @description **Frescos:** Frutas e Vegetais
+// @description **Bebidas:** Bebidas (não alcoólicas), Bebidas Alcoólicas, Café e Chá
+// @description **Congelados:** Produtos Congelados
+// @description **Doces:** Doces e Sobremesas, Salgadinhos e Snacks
+// @description **Despensa:** Condimentos e Temperos, Enlatados e Conservas
+// @description **Casa:** Higiene Pessoal, Limpeza Doméstica, Papel e Descartáveis
+// @description **Especiais:** Bebê e Infantil, Pet Shop, Outros
 // @description
 // @description Use `/categories` para ver todas as categorias com IDs!
 // @termsOfService http://swagger.io/terms/

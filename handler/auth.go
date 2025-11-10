@@ -66,10 +66,16 @@ func RegisterHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Verifica se o email já existe
+	// Verifica se o email já existe (incluindo usuários deletados)
+	// Usamos Unscoped() para buscar também usuários com deleted_at não null
 	var existingUser schemas.User
-	if err := db.Where("email = ?", request.Email).First(&existingUser).Error; err == nil {
-		sendError(ctx, http.StatusBadRequest, "Email already registered")
+	if err := db.Unscoped().Where("email = ?", request.Email).First(&existingUser).Error; err == nil {
+		// Email encontrado - pode ser usuário ativo ou deletado
+		if existingUser.DeletedAt.Valid {
+			sendError(ctx, http.StatusBadRequest, "This email was used in a deleted account and cannot be reused")
+		} else {
+			sendError(ctx, http.StatusBadRequest, "Email already registered")
+		}
 		return
 	}
 

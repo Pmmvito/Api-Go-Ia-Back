@@ -174,7 +174,7 @@ func GetCategoryHandler(ctx *gin.Context) {
 	// Converte para o formato de resposta
 	items := make([]CategoryItemResponse, 0, len(receiptItems))
 	var totalValue float64
-	
+
 	for _, item := range receiptItems {
 		// Pega nome e unidade do produto (OBRIGATÓRIO)
 		name := "Produto sem nome"
@@ -183,7 +183,7 @@ func GetCategoryHandler(ctx *gin.Context) {
 			name = item.Product.Name
 			unit = item.Product.Unity
 		}
-		
+
 		// Pega nome da loja e data do recibo
 		storeName := ""
 		purchaseDate := ""
@@ -191,7 +191,7 @@ func GetCategoryHandler(ctx *gin.Context) {
 			storeName = item.Receipt.StoreName
 			purchaseDate = item.Receipt.Date
 		}
-		
+
 		items = append(items, CategoryItemResponse{
 			ID:           item.ID,
 			Name:         name,
@@ -202,7 +202,7 @@ func GetCategoryHandler(ctx *gin.Context) {
 			StoreName:    storeName,
 			PurchaseDate: purchaseDate,
 		})
-		
+
 		totalValue += item.Total
 	}
 

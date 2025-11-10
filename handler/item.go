@@ -183,6 +183,18 @@ func UpdateItemHandler(ctx *gin.Context) {
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /item/{id} [delete]
+// @Summary Delete receipt item
+// @Description Soft delete a receipt item (sets deleted_at timestamp). Note: The associated product is NOT deleted as it may be referenced by other items.
+// @Tags items
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Receipt Item ID"
+// @Success 200 {object} map[string]interface{} "Item deleted successfully"
+// @Failure 404 {object} ErrorResponse "Item not found"
+// @Failure 401 {object} ErrorResponse "Unauthorized - Invalid or missing token"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /item/{id} [delete]
 func DeleteItemHandler(ctx *gin.Context) {
 	id := ctx.Param("id")
 	if id == "" {
@@ -190,17 +202,27 @@ func DeleteItemHandler(ctx *gin.Context) {
 		return
 	}
 
+	userID, _ := ctx.Get("user_id")
+
+	// Busca o item através do recibo do usuário
 	var item schemas.ReceiptItem
-	if err := db.First(&item, id).Error; err != nil {
+	if err := db.Joins("JOIN receipts ON receipts.id = receipt_items.receipt_id").
+		Where("receipt_items.id = ? AND receipts.user_id = ?", id, userID).
+		First(&item).Error; err != nil {
 		sendError(ctx, http.StatusNotFound, "Item not found")
 		return
 	}
 
+	// Soft delete do item
+	// NOTA: NÃO deletamos o produto pois ele pode estar sendo usado por outros items
 	if err := db.Delete(&item).Error; err != nil {
 		logger.ErrorF("error deleting item: %v", err.Error())
 		sendError(ctx, http.StatusInternalServerError, "Error deleting item")
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"message": "Item deleted successfully"})
+	logger.InfoF("Item %s soft deleted successfully", id)
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Item deleted successfully",
+	})
 }

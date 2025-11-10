@@ -137,6 +137,18 @@ func UpdateProductHandler(ctx *gin.Context) {
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /products/{id} [delete]
+// @Summary Delete product
+// @Description Soft delete a product and ALL its associated receipt items across all user's receipts (sets deleted_at timestamp). Warning: This will delete ALL occurrences of this product in ALL your receipts.
+// @Tags products
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Product ID"
+// @Success 200 {object} map[string]interface{} "Product deleted successfully"
+// @Failure 404 {object} ErrorResponse "Product not found or not owned by user"
+// @Failure 401 {object} ErrorResponse "Unauthorized - Invalid or missing token"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /product/{id} [delete]
 func DeleteProductHandler(ctx *gin.Context) {
 	id := ctx.Param("id")
 	if id == "" {
@@ -144,19 +156,73 @@ func DeleteProductHandler(ctx *gin.Context) {
 		return
 	}
 
+	userID, _ := ctx.Get("user_id")
+
+	// Verifica se o produto existe e pertence ao usuário (através de algum receipt_item)
 	var product schemas.Product
-	if err := db.First(&product, id).Error; err != nil {
-		sendError(ctx, http.StatusNotFound, "Product not found")
+	if err := db.Joins("JOIN receipt_items ON receipt_items.product_id = products.id").
+		Joins("JOIN receipts ON receipts.id = receipt_items.receipt_id").
+		Where("products.id = ? AND receipts.user_id = ?", id, userID).
+		First(&product).Error; err != nil {
+		sendError(ctx, http.StatusNotFound, "Product not found or you don't have permission to delete it")
 		return
 	}
 
-	if err := db.Delete(&product).Error; err != nil {
-		logger.ErrorF("error deleting product: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error deleting product")
+	// Inicia transação
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 1. Soft delete APENAS dos receipt_items do usuário que usam este produto
+	result := tx.Where("product_id = ? AND receipt_id IN (SELECT id FROM receipts WHERE user_id = ?)", product.ID, userID).
+		Delete(&schemas.ReceiptItem{})
+	if result.Error != nil {
+		tx.Rollback()
+		logger.ErrorF("error deleting receipt items: %v", result.Error.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error deleting receipt items")
+		return
+	}
+	itemsDeleted := result.RowsAffected
+	logger.InfoF("Soft deleted %d receipt items for product %d", itemsDeleted, product.ID)
+
+	// 2. Verifica se ainda há items de outros usuários usando este produto
+	var remainingItems int64
+	if err := tx.Model(&schemas.ReceiptItem{}).Where("product_id = ?", product.ID).Count(&remainingItems).Error; err != nil {
+		tx.Rollback()
+		logger.ErrorF("error counting remaining items: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error checking remaining items")
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"message": "Product deleted successfully"})
+	// 3. Se não há mais items usando este produto, pode deletar o produto
+	if remainingItems == 0 {
+		if err := tx.Delete(&product).Error; err != nil {
+			tx.Rollback()
+			logger.ErrorF("error deleting product: %v", err.Error())
+			sendError(ctx, http.StatusInternalServerError, "Error deleting product")
+			return
+		}
+		logger.InfoF("Product %d soft deleted (no more references)", product.ID)
+	} else {
+		logger.InfoF("Product %d NOT deleted (%d items from other users still reference it)", product.ID, remainingItems)
+	}
+
+	// Commit
+	if err := tx.Commit().Error; err != nil {
+		logger.ErrorF("error committing transaction: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error committing deletion")
+		return
+	}
+
+	logger.InfoF("Product deletion completed: %d items deleted", itemsDeleted)
+	ctx.JSON(http.StatusOK, gin.H{
+		"message":        "All your items using this product were deleted successfully",
+		"itemsDeleted":   itemsDeleted,
+		"productDeleted": remainingItems == 0,
+	})
 }
 
 // GetProductsByPeriodHandler busca todos os produtos dentro de um período de tempo

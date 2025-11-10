@@ -8,10 +8,11 @@ import (
 )
 
 // User define o modelo de usuário para o banco de dados.
+// Email é único globalmente - mesmo usuários deletados não podem ter email reutilizado
 type User struct {
 	gorm.Model
 	Name          string         `gorm:"not null"`
-	Email         string         `gorm:"unique;not null;index"`
+	Email         string         `gorm:"not null;index:idx_email_unique,unique"` // Índice único que impede reuso de email mesmo após soft delete
 	Password      string         `gorm:"not null"`
 	ActiveToken   *string        `gorm:"type:text" json:"-"`                            // Token JWT ativo atual (null após logout)
 	Receipts      []Receipt      `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"` // Relacionamento HasMany com Receipts

@@ -91,6 +91,18 @@ func GetReceiptsBasicHandler(ctx *gin.Context) {
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /receipt/{id} [delete]
+// @Summary Delete a receipt
+// @Description Soft delete a receipt and all its related items and products (sets deleted_at timestamp)
+// @Tags notasfiscais
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Receipt ID"
+// @Success 200 {object} map[string]interface{} "Receipt deleted successfully"
+// @Failure 404 {object} ErrorResponse "Receipt not found"
+// @Failure 401 {object} ErrorResponse "Unauthorized - Invalid or missing token"
+// @Failure 500 {object} ErrorResponse "Internal server error"
+// @Router /receipt/{id} [delete]
 func DeleteReceiptHandler(ctx *gin.Context) {
 	id := ctx.Param("id")
 	if id == "" {
@@ -98,19 +110,65 @@ func DeleteReceiptHandler(ctx *gin.Context) {
 		return
 	}
 
+	userID, _ := ctx.Get("user_id")
+
+	// Busca o recibo do usuário
 	var receipt schemas.Receipt
-	if err := db.First(&receipt, id).Error; err != nil {
+	if err := db.Where("user_id = ?", userID).First(&receipt, id).Error; err != nil {
 		sendError(ctx, http.StatusNotFound, "Receipt not found")
 		return
 	}
 
-	if err := db.Delete(&receipt).Error; err != nil {
+	// Inicia transação para garantir consistência
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 1. Busca todos os itens do recibo
+	var receiptItems []schemas.ReceiptItem
+	if err := tx.Where("receipt_id = ?", receipt.ID).Find(&receiptItems).Error; err != nil {
+		tx.Rollback()
+		logger.ErrorF("error finding receipt items: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error deleting receipt items")
+		return
+	}
+
+	// 2. Soft delete dos itens do recibo
+	// NOTA: NÃO deletamos produtos pois eles podem estar sendo usados por outros items
+	if err := tx.Where("receipt_id = ?", receipt.ID).Delete(&schemas.ReceiptItem{}).Error; err != nil {
+		tx.Rollback()
+		logger.ErrorF("error deleting receipt items: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error deleting receipt items")
+		return
+	}
+	logger.InfoF("Soft deleted %d receipt items", len(receiptItems))
+
+	// 3. Soft delete do recibo
+	if err := tx.Delete(&receipt).Error; err != nil {
+		tx.Rollback()
 		logger.ErrorF("error deleting receipt: %v", err.Error())
 		sendError(ctx, http.StatusInternalServerError, "Error deleting receipt")
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"message": "Receipt deleted successfully"})
+	// Commit da transação
+	if err := tx.Commit().Error; err != nil {
+		logger.ErrorF("error committing transaction: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Error committing deletion")
+		return
+	}
+
+	logger.InfoF("Receipt %s and all related items soft deleted successfully", id)
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Receipt and all related items deleted successfully",
+		"details": gin.H{
+			"receiptId":    receipt.ID,
+			"itemsDeleted": len(receiptItems),
+		},
+	})
 }
 
 // @Summary Update a receipt

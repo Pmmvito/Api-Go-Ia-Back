@@ -54,22 +54,30 @@ func InitializePostgreSQL() (*gorm.DB, error) {
 // createDefaultCategories verifica a existência de categorias padrão no banco de dados
 // e as cria se não estiverem presentes. Isso garante que a aplicação tenha um conjunto base de categorias para trabalhar.
 func createDefaultCategories(db *gorm.DB, logger *Logger) {
-	// Categorias padrão simplificadas e não redundantes para evitar confusão na IA
+	// Categorias padrão reformuladas para serem DISTINTAS e não confundir a IA
+	// Cada categoria tem um foco ÚNICO e específico
 	defaultCategories := []schemas.Category{
-		{Name: "Grãos e Cereais", Description: "Arroz, feijão, aveia, cereais", Icon: "🌾", Color: "#F4A261"},
-		{Name: "Massas e Padaria", Description: "Macarrão, pães, bolos e produtos de padaria", Icon: "�", Color: "#E9C46A"},
-		{Name: "Pantry e Ingredientes", Description: "Óleos, enlatados, condimentos, farinhas e fermentos", Icon: "�", Color: "#D4A574"},
-		{Name: "Proteínas", Description: "Carnes, aves, peixes, ovos e frios", Icon: "�", Color: "#E74C3C"},
-		{Name: "Laticínios", Description: "Leite, queijos, iogurtes, manteiga", Icon: "🧀", Color: "#F1C40F"},
-		{Name: "Hortifruti", Description: "Frutas e vegetais frescos", Icon: "🥬", Color: "#27AE60"},
-		{Name: "Bebidas", Description: "Água, sucos, refrigerantes, cafés, chás e bebidas alcoólicas", Icon: "☕", Color: "#3498DB"},
-		{Name: "Congelados e Frios", Description: "Produtos congelados e sorvetes", Icon: "🧊", Color: "#81ECEC"},
-		{Name: "Snacks e Doces", Description: "Chocolates, doces, salgadinhos e sobremesas", Icon: "🍫", Color: "#FF7675"},
-		{Name: "Higiene e Cuidados Pessoais", Description: "Produtos de higiene pessoal e cuidados", Icon: "🧼", Color: "#A29BFE"},
-		{Name: "Limpeza e Utilidades", Description: "Produtos de limpeza, lavanderia e descartáveis", Icon: "🧺", Color: "#0984E3"},
-		{Name: "Bebê e Infantil", Description: "Fraldas, papinhas e produtos infantis", Icon: "�", Color: "#FFA07A"},
-		{Name: "Pet", Description: "Ração e itens para animais de estimação", Icon: "�", Color: "#FF6348"},
-		{Name: "Outros", Description: "Itens diversos não categorizados", Icon: "📦", Color: "#B2BEC3"},
+		{Name: "Grãos e Cereais", Description: "Arroz, feijão, lentilha, aveia, granola, cereais matinais", Icon: "🌾", Color: "#F4A261"},
+		{Name: "Massas", Description: "Macarrão, lasanha, nhoque, massas secas e frescas", Icon: "🍝", Color: "#E9C46A"},
+		{Name: "Padaria", Description: "Pães, baguetes, brioche, croissant, pão de forma", Icon: "🍞", Color: "#D4A574"},
+		{Name: "Carnes e Proteínas", Description: "Carne bovina, suína, frango, peixe, frutos do mar, ovos", Icon: "🥩", Color: "#E74C3C"},
+		{Name: "Frios e Embutidos", Description: "Presunto, mortadela, salame, peito de peru, salsicha, linguiça", Icon: "🥓", Color: "#C0392B"},
+		{Name: "Laticínios", Description: "Leite, queijos, requeijão, creme de leite, iogurtes, manteiga", Icon: "🧀", Color: "#F1C40F"},
+		{Name: "Frutas e Vegetais", Description: "Frutas frescas, verduras, legumes, saladas, ervas", Icon: "🥬", Color: "#27AE60"},
+		{Name: "Bebidas", Description: "Refrigerante, suco, água, isotônico, energético (NÃO álcool, NÃO café)", Icon: "🥤", Color: "#3498DB"},
+		{Name: "Bebidas Alcoólicas", Description: "Cerveja, vinho, destilados, drinks (APENAS bebidas com álcool)", Icon: "🍺", Color: "#8E44AD"},
+		{Name: "Café e Chá", Description: "Café em pó, café expresso, chás, infusões, mate (APENAS estas bebidas)", Icon: "☕", Color: "#6F4E37"},
+		{Name: "Congelados", Description: "Alimentos congelados, pizzas congeladas, vegetais congelados, pratos prontos congelados", Icon: "🧊", Color: "#81ECEC"},
+		{Name: "Doces e Sobremesas", Description: "Chocolates, bombons, balas, gomas, pudim, gelatina, sorvetes", Icon: "🍫", Color: "#FF7675"},
+		{Name: "Salgadinhos e Snacks", Description: "Chips, batata frita, amendoim, pipoca, biscoitos salgados", Icon: "🥨", Color: "#FD79A8"},
+		{Name: "Condimentos e Temperos", Description: "Sal, açúcar, especiarias, molhos prontos, vinagre, azeite, óleo", Icon: "🧂", Color: "#E67E22"},
+		{Name: "Enlatados e Conservas", Description: "Milho, ervilha, atum, sardinha, palmito, azeitona em lata/vidro", Icon: "🥫", Color: "#95A5A6"},
+		{Name: "Higiene Pessoal", Description: "Sabonete, shampoo, condicionador, desodorante, creme dental, escova", Icon: "🧼", Color: "#A29BFE"},
+		{Name: "Limpeza Doméstica", Description: "Detergente, desinfetante, água sanitária, amaciante, esponja, vassoura", Icon: "🧹", Color: "#0984E3"},
+		{Name: "Papel e Descartáveis", Description: "Papel higiênico, papel toalha, guardanapo, copos e pratos descartáveis", Icon: "�", Color: "#74B9FF"},
+		{Name: "Bebê e Infantil", Description: "Fraldas, lenços umedecidos, papinhas, leite em pó infantil", Icon: "👶", Color: "#FFA07A"},
+		{Name: "Pet Shop", Description: "Ração para cães e gatos, petiscos, areia sanitária para pets", Icon: "🐾", Color: "#FF6348"},
+		{Name: "Outros", Description: "Produtos não enquadrados em nenhuma categoria acima", Icon: "📦", Color: "#B2BEC3"},
 	}
 
 	for _, category := range defaultCategories {

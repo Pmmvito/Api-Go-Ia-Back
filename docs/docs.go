@@ -465,19 +465,25 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "BearerAuth": []
                     }
                 ],
-                "description": "Delete an existing receipt item by its ID.",
+                "description": "Delete an existing receipt item by its ID.\nSoft delete a receipt item (sets deleted_at timestamp). Note: The associated product is NOT deleted as it may be referenced by other items.",
                 "consumes": [
+                    "application/json",
                     "application/json"
                 ],
                 "produces": [
+                    "application/json",
                     "application/json"
                 ],
                 "tags": [
+                    "items",
                     "items"
                 ],
-                "summary": "Delete an item",
+                "summary": "Delete receipt item",
                 "parameters": [
                     {
                         "type": "integer",
@@ -485,16 +491,21 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Receipt Item ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Item deleted successfully",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
@@ -503,14 +514,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing token",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Item not found",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
@@ -815,6 +832,81 @@ const docTemplate = `{
                 }
             }
         },
+        "/product/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    },
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete an existing product by its ID.\nSoft delete a product and ALL its associated receipt items across all user's receipts (sets deleted_at timestamp). Warning: This will delete ALL occurrences of this product in ALL your receipts.",
+                "consumes": [
+                    "application/json",
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json",
+                    "application/json"
+                ],
+                "tags": [
+                    "products",
+                    "products"
+                ],
+                "summary": "Delete product",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Product deleted successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing token",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Product not found or not owned by user",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/products": {
             "get": {
                 "security": [
@@ -970,20 +1062,33 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "BearerAuth": []
                     }
                 ],
-                "description": "Delete an existing product by its ID.",
+                "description": "Delete an existing product by its ID.\nSoft delete a product and ALL its associated receipt items across all user's receipts (sets deleted_at timestamp). Warning: This will delete ALL occurrences of this product in ALL your receipts.",
                 "consumes": [
+                    "application/json",
                     "application/json"
                 ],
                 "produces": [
+                    "application/json",
                     "application/json"
                 ],
                 "tags": [
+                    "products",
                     "products"
                 ],
-                "summary": "Delete a product",
+                "summary": "Delete product",
                 "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
                     {
                         "type": "integer",
                         "description": "Product ID",
@@ -994,12 +1099,10 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Product deleted successfully",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
@@ -1008,14 +1111,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing token",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Product not found or not owned by user",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
@@ -1131,16 +1240,22 @@ const docTemplate = `{
                 "security": [
                     {
                         "BearerAuth": []
+                    },
+                    {
+                        "BearerAuth": []
                     }
                 ],
-                "description": "Delete an existing receipt by its ID.",
+                "description": "Delete an existing receipt by its ID.\nSoft delete a receipt and all its related items and products (sets deleted_at timestamp)",
                 "consumes": [
+                    "application/json",
                     "application/json"
                 ],
                 "produces": [
+                    "application/json",
                     "application/json"
                 ],
                 "tags": [
+                    "notasfiscais",
                     "notasfiscais"
                 ],
                 "summary": "Delete a receipt",
@@ -1151,16 +1266,21 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Receipt ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "Receipt deleted successfully",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
@@ -1169,14 +1289,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing token",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
                     "404": {
-                        "description": "Not Found",
+                        "description": "Receipt not found",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
@@ -1605,6 +1731,53 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Soft delete user account and all associated data (receipts, items, products, shopping lists, tokens). Email cannot be reused even after deletion.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Delete user account",
+                "responses": {
+                    "200": {
+                        "description": "User deleted successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing token",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
@@ -2219,7 +2392,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/api/v1",
 	Schemes:          []string{},
 	Title:            "API de Gestão de Notas Fiscais com IA",
-	Description:      "API REST para autenticação JWT, análise inteligente de notas fiscais de supermercado e gestão de categorias\n\n## 🚀 Funcionalidades Principais:\n- 🔐 **Autenticação JWT** com tokens de 7 dias\n- 🤖 **Análise de Notas com IA** usando Google Gemini (2-3s)\n- 📊 **Categorização Automática** de produtos de supermercado\n- 📝 **CRUD Completo** de recibos e categorias\n- 🔍 **Filtros Avançados** por categoria, data e valor\n- ⚡ **Respostas Otimizadas** (55% menores)\n\n## 📖 Como Usar:\n1. Registre-se em `/register`\n2. Faça login em `/login` para obter o token JWT\n3. Clique em **Authorize** 🔓 (cadeado verde) e cole: `Bearer SEU_TOKEN`\n4. Agora você pode testar todos os endpoints protegidos!\n\n## 🛒 Categorias de Supermercado (45+ categorias):\n**Alimentos Básicos:** Grãos e Cereais, Massas, Farinhas\n**Proteínas:** Carnes Vermelhas, Aves, Peixes, Frios e Embutidos\n**Laticínios:** Leite, Queijos, Iogurtes, Manteiga\n**Hortifruti:** Frutas, Verduras, Legumes\n**Padaria:** Pães, Bolos e Tortas, Biscoitos\n**Bebidas:** Refrigerantes, Sucos, Água, Bebidas Alcoólicas, Cafés e Chás\n**Congelados:** Congelados, Sorvetes\n**Despensa:** Óleos, Temperos, Molhos, Enlatados\n**Doces:** Chocolates, Doces e Balas, Sobremesas\n**Snacks:** Salgadinhos, Lanches Rápidos\n**Higiene:** Higiene Bucal, Corporal, Papel Higiênico, Fraldas\n**Limpeza:** Limpeza Geral, Limpeza de Roupas, Descartáveis\n**Outros:** Pet Shop, Alimentação Infantil, Utilidades Domésticas\n\nUse `/categories` para ver todas as categorias com IDs!",
+	Description:      "API REST para autenticação JWT, análise inteligente de notas fiscais de supermercado e gestão de categorias\n\n## 🚀 Funcionalidades Principais:\n- 🔐 **Autenticação JWT** com tokens de 7 dias\n- 🤖 **Análise de Notas com IA** usando Google Gemini (2-3s)\n- 📊 **Categorização Automática** de produtos de supermercado\n- 📝 **CRUD Completo** de recibos e categorias\n- 🔍 **Filtros Avançados** por categoria, data e valor\n- ⚡ **Respostas Otimizadas** (55% menores)\n\n## 📖 Como Usar:\n1. Registre-se em `/register`\n2. Faça login em `/login` para obter o token JWT\n3. Clique em **Authorize** 🔓 (cadeado verde) e cole: `Bearer SEU_TOKEN`\n4. Agora você pode testar todos os endpoints protegidos!\n\n## 🛒 Categorias de Supermercado (21 categorias distintas):\n**Básicos:** Grãos e Cereais, Massas, Padaria\n**Proteínas:** Carnes e Proteínas, Frios e Embutidos\n**Laticínios:** Leite, Queijos, Iogurtes, Manteiga\n**Frescos:** Frutas e Vegetais\n**Bebidas:** Bebidas (não alcoólicas), Bebidas Alcoólicas, Café e Chá\n**Congelados:** Produtos Congelados\n**Doces:** Doces e Sobremesas, Salgadinhos e Snacks\n**Despensa:** Condimentos e Temperos, Enlatados e Conservas\n**Casa:** Higiene Pessoal, Limpeza Doméstica, Papel e Descartáveis\n**Especiais:** Bebê e Infantil, Pet Shop, Outros\n\nUse `/categories` para ver todas as categorias com IDs!",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

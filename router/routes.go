@@ -29,6 +29,7 @@ func InitializeRoutes(router *gin.Engine) {
 	{
 		protected.GET("/me", handler.MeHandler)
 		protected.POST("/logout", handler.LogoutHandler)
+		protected.DELETE("/user", handler.DeleteUserHandler) // 🗑️ Deletar conta do usuário
 
 		// Rotas de uso de tokens da IA (apenas consulta - registro é automático)
 		protected.GET("/ai-usage", handler.GetAITokenUsageHandler)
