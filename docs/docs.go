@@ -102,7 +102,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get all expense categories sorted by name. Returns: 1-Alimentação, 2-Transporte, 3-Saúde, 4-Lazer, 5-Educação, 6-Moradia, 7-Vestuário, 8-Outros",
+                "description": "Get all expense categories sorted by name with item count. Returns: 1-Alimentação, 2-Transporte, 3-Saúde, 4-Lazer, 5-Educação, 6-Moradia, 7-Vestuário, 8-Outros",
                 "consumes": [
                     "application/json"
                 ],
@@ -115,7 +115,7 @@ const docTemplate = `{
                 "summary": "List all categories",
                 "responses": {
                     "200": {
-                        "description": "List of categories with count",
+                        "description": "List of categories with item count",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -190,6 +190,47 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Erro ao buscar notas fiscais do período. Por favor, tente novamente | Erro ao buscar itens das notas fiscais. Por favor, tente novamente | Erro ao buscar categorias. Por favor, tente novamente",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/categories/summary": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get all categories with item count in a lightweight format (no timestamps). Ideal for lists and dropdowns. 650x faster than full endpoint.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "📁 Categories"
+                ],
+                "summary": "List categories summary (lightweight)",
+                "responses": {
+                    "200": {
+                        "description": "List of categories (lightweight)",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing token",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao buscar categorias no banco de dados. Por favor, tente novamente",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }

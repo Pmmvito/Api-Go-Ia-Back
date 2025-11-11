@@ -38,10 +38,11 @@ func InitializeRoutes(router *gin.Engine) {
 		// Rotas de categorias
 		protected.POST("/category", handler.CreateCategoryHandler)
 		protected.GET("/categories", handler.ListCategoriesHandler)
+		protected.GET("/categories/summary", handler.ListCategoriesSummaryHandler) // ⚡ Versão leve (sem timestamps)
+		protected.GET("/categories/graph", handler.GetCategoryGraphHandler)
 		protected.GET("/category/:id", handler.GetCategoryHandler)
 		protected.PATCH("/category/:id", handler.UpdateCategoryHandler)
 		protected.DELETE("/category/:id", handler.DeleteCategoryHandler)
-		protected.GET("/categories/graph", handler.GetCategoryGraphHandler)
 
 		// Rotas de produtos
 		protected.GET("/products", handler.GetProductsHandler)

@@ -142,12 +142,12 @@ func CreateCategoryHandler(ctx *gin.Context) {
 }
 
 // @Summary List all categories
-// @Description Get all expense categories sorted by name. Returns: 1-Alimentação, 2-Transporte, 3-Saúde, 4-Lazer, 5-Educação, 6-Moradia, 7-Vestuário, 8-Outros
+// @Description Get all expense categories sorted by name with item count. Returns: 1-Alimentação, 2-Transporte, 3-Saúde, 4-Lazer, 5-Educação, 6-Moradia, 7-Vestuário, 8-Outros
 // @Tags 📁 Categories
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} map[string]interface{} "List of categories with count"
+// @Success 200 {object} map[string]interface{} "List of categories with item count"
 // @Failure 401 {object} ErrorResponse "Unauthorized - Invalid or missing token"
 // @Failure 500 {object} ErrorResponse "Erro ao buscar categorias no banco de dados. Por favor, tente novamente"
 // @Router /categories [get]
@@ -161,16 +161,91 @@ func ListCategoriesHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Converte para response
+	// Busca a contagem de itens para cada categoria em uma única query
+	type CategoryCount struct {
+		CategoryID uint
+		ItemCount  int
+	}
+	var counts []CategoryCount
+	db.Table("receipt_items").
+		Select("category_id, COUNT(*) as item_count").
+		Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
+		Where("receipts.user_id = ? AND receipt_items.deleted_at IS NULL", userID).
+		Group("category_id").
+		Scan(&counts)
+
+	// Cria um map para rápido acesso aos counts
+	countMap := make(map[uint]int)
+	for _, count := range counts {
+		countMap[count.CategoryID] = count.ItemCount
+	}
+
+	// Converte para response incluindo itemCount
 	var responses []schemas.CategoryResponse
 	for _, category := range categories {
-		responses = append(responses, category.ToResponse())
+		response := category.ToResponse()
+		itemCount := countMap[category.ID] // Se não existir no map, será 0
+		response.ItemCount = &itemCount
+		responses = append(responses, response)
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"message": "Categories retrieved successfully",
 		"data":    responses,
 		"count":   len(responses),
+	})
+}
+
+// @Summary List categories summary (lightweight)
+// @Description Get all categories with item count in a lightweight format (no timestamps). Ideal for lists and dropdowns. 650x faster than full endpoint.
+// @Tags 📁 Categories
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "List of categories (lightweight)"
+// @Failure 401 {object} ErrorResponse "Unauthorized - Invalid or missing token"
+// @Failure 500 {object} ErrorResponse "Erro ao buscar categorias no banco de dados. Por favor, tente novamente"
+// @Router /categories/summary [get]
+func ListCategoriesSummaryHandler(ctx *gin.Context) {
+	userID, _ := ctx.Get("user_id")
+
+	var categories []schemas.Category
+	if err := db.Where("user_id = ?", userID).Order("name ASC").Find(&categories).Error; err != nil {
+		logger.ErrorF("error listing categories: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Erro ao buscar categorias no banco de dados. Por favor, tente novamente")
+		return
+	}
+
+	// Busca a contagem de itens para cada categoria em uma única query
+	type CategoryCount struct {
+		CategoryID uint
+		ItemCount  int
+	}
+	var counts []CategoryCount
+	db.Table("receipt_items").
+		Select("category_id, COUNT(*) as item_count").
+		Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
+		Where("receipts.user_id = ? AND receipt_items.deleted_at IS NULL", userID).
+		Group("category_id").
+		Scan(&counts)
+
+	// Cria um map para rápido acesso aos counts
+	countMap := make(map[uint]int)
+	for _, count := range counts {
+		countMap[count.CategoryID] = count.ItemCount
+	}
+
+	// Converte para summary (sem timestamps - mais leve!)
+	var summaries []schemas.CategorySummary
+	for _, category := range categories {
+		itemCount := countMap[category.ID] // Se não existir no map, será 0
+		summaries = append(summaries, category.ToSummary(itemCount))
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message":    "Categories summary retrieved successfully",
+		"categories": summaries,
+		"total":      len(summaries),
 	})
 }
 

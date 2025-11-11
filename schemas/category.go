@@ -31,6 +31,18 @@ type CategoryResponse struct {
 	Description string    `json:"description"`
 	Icon        string    `json:"icon"`
 	Color       string    `json:"color"`
+	ItemCount   *int      `json:"itemCount,omitempty"` // Contagem de itens (opcional, preenchido quando solicitado)
+}
+
+// CategorySummary fornece uma versão ultra-simplificada de uma categoria.
+// Ideal para listagens que não precisam de timestamps.
+type CategorySummary struct {
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Icon        string `json:"icon"`
+	Color       string `json:"color"`
+	ItemCount   int    `json:"itemCount"` // Sempre incluído em summary
 }
 
 // ToResponse converte um modelo Category para o formato CategoryResponse.
@@ -44,5 +56,19 @@ func (c *Category) ToResponse() CategoryResponse {
 		Description: c.Description,
 		Icon:        c.Icon,
 		Color:       c.Color,
+		ItemCount:   nil, // Preenchido apenas quando solicitado
+	}
+}
+
+// ToSummary converte um modelo Category para CategorySummary.
+// Usado para listagens rápidas sem timestamps.
+func (c *Category) ToSummary(itemCount int) CategorySummary {
+	return CategorySummary{
+		ID:          c.ID,
+		Name:        c.Name,
+		Description: c.Description,
+		Icon:        c.Icon,
+		Color:       c.Color,
+		ItemCount:   itemCount,
 	}
 }
