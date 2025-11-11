@@ -55,6 +55,7 @@ func InitializeRoutes(router *gin.Engine) {
 		protected.GET("/products/period", handler.GetProductsByPeriodHandler)
 
 		// Rotas de recibos
+		protected.POST("/receipt", handler.CreateReceiptHandler)
 		protected.GET("/receipts", handler.GetReceiptsHandler)
 		protected.GET("/receipts/date/:date", handler.GetReceiptsByDateHandler)
 		protected.GET("/receipts/period", handler.GetReceiptsByPeriodHandler)

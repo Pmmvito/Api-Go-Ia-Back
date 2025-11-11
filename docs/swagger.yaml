@@ -26,6 +26,68 @@ definitions:
     required:
     - name
     type: object
+  handler.CreateReceiptItemRequest:
+    properties:
+      categoryId:
+        example: 1
+        type: integer
+      productName:
+        example: Arroz Integral
+        type: string
+      productUnit:
+        example: kg
+        type: string
+      quantity:
+        example: 2.5
+        type: number
+      total:
+        example: 39.75
+        type: number
+      unitPrice:
+        example: 15.9
+        type: number
+    required:
+    - categoryId
+    - productName
+    - productUnit
+    - quantity
+    - total
+    - unitPrice
+    type: object
+  handler.CreateReceiptRequest:
+    properties:
+      currency:
+        example: BRL
+        type: string
+      date:
+        example: "2024-11-11"
+        type: string
+      discount:
+        example: 5
+        type: number
+      items:
+        items:
+          $ref: '#/definitions/handler.CreateReceiptItemRequest'
+        minItems: 1
+        type: array
+      notes:
+        example: Compra mensal
+        type: string
+      storeName:
+        example: Supermercado Silva
+        type: string
+      subtotal:
+        example: 100
+        type: number
+      total:
+        example: 95
+        type: number
+    required:
+    - date
+    - items
+    - storeName
+    - total
+    type: object
   handler.ErrorResponse:
     properties:
       errorCode:
@@ -1392,6 +1454,44 @@ paths:
       summary: Buscar produtos por período
       tags:
       - products
+  /receipt:
+    post:
+      consumes:
+      - application/json
+      description: Create a new receipt with items manually (without QR code scanning)
+      parameters:
+      - description: Receipt data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateReceiptRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Receipt created successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Dados inválidos | Categoria não encontrada ou não pertence
+            ao usuário
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized - Invalid or missing token
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Erro ao criar nota fiscal. Por favor, tente novamente
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a receipt manually
+      tags:
+      - notasfiscais
   /receipt/{id}:
     delete:
       consumes:

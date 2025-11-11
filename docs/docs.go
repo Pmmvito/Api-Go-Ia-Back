@@ -1390,6 +1390,64 @@ const docTemplate = `{
                 }
             }
         },
+        "/receipt": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Create a new receipt with items manually (without QR code scanning)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "notasfiscais"
+                ],
+                "summary": "Create a receipt manually",
+                "parameters": [
+                    {
+                        "description": "Receipt data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.CreateReceiptRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Receipt created successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Dados inválidos | Categoria não encontrada ou não pertence ao usuário",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid or missing token",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao criar nota fiscal. Por favor, tente novamente",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/receipt/{id}": {
             "get": {
                 "security": [
@@ -2018,6 +2076,89 @@ const docTemplate = `{
                 "name": {
                     "type": "string",
                     "example": "Viagens"
+                }
+            }
+        },
+        "handler.CreateReceiptItemRequest": {
+            "type": "object",
+            "required": [
+                "categoryId",
+                "productName",
+                "productUnit",
+                "quantity",
+                "total",
+                "unitPrice"
+            ],
+            "properties": {
+                "categoryId": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "productName": {
+                    "type": "string",
+                    "example": "Arroz Integral"
+                },
+                "productUnit": {
+                    "type": "string",
+                    "example": "kg"
+                },
+                "quantity": {
+                    "type": "number",
+                    "example": 2.5
+                },
+                "total": {
+                    "type": "number",
+                    "example": 39.75
+                },
+                "unitPrice": {
+                    "type": "number",
+                    "example": 15.9
+                }
+            }
+        },
+        "handler.CreateReceiptRequest": {
+            "type": "object",
+            "required": [
+                "date",
+                "items",
+                "storeName",
+                "total"
+            ],
+            "properties": {
+                "currency": {
+                    "type": "string",
+                    "example": "BRL"
+                },
+                "date": {
+                    "type": "string",
+                    "example": "2024-11-11"
+                },
+                "discount": {
+                    "type": "number",
+                    "example": 5
+                },
+                "items": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "$ref": "#/definitions/handler.CreateReceiptItemRequest"
+                    }
+                },
+                "notes": {
+                    "type": "string",
+                    "example": "Compra mensal"
+                },
+                "storeName": {
+                    "type": "string",
+                    "example": "Supermercado Silva"
+                },
+                "subtotal": {
+                    "type": "number",
+                    "example": 100
+                },
+                "total": {
+                    "type": "number",
+                    "example": 95
                 }
             }
         },

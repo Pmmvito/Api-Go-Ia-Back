@@ -8,6 +8,28 @@ import (
 	"gorm.io/gorm"
 )
 
+// CreateReceiptItemRequest define a estrutura para um item de nota fiscal na criação manual.
+type CreateReceiptItemRequest struct {
+	ProductName string  `json:"productName" binding:"required" example:"Arroz Integral"`
+	ProductUnit string  `json:"productUnit" binding:"required" example:"kg"`
+	CategoryID  uint    `json:"categoryId" binding:"required" example:"1"`
+	Quantity    float64 `json:"quantity" binding:"required,gt=0" example:"2.5"`
+	UnitPrice   float64 `json:"unitPrice" binding:"required,gt=0" example:"15.90"`
+	Total       float64 `json:"total" binding:"required,gt=0" example:"39.75"`
+}
+
+// CreateReceiptRequest define a estrutura para criar uma nota fiscal manualmente.
+type CreateReceiptRequest struct {
+	StoreName string                     `json:"storeName" binding:"required" example:"Supermercado Silva"`
+	Date      string                     `json:"date" binding:"required" example:"2024-11-11"`
+	Items     []CreateReceiptItemRequest `json:"items" binding:"required,min=1"`
+	Subtotal  float64                    `json:"subtotal" example:"100.00"`
+	Discount  float64                    `json:"discount" example:"5.00"`
+	Total     float64                    `json:"total" binding:"required,gt=0" example:"95.00"`
+	Currency  string                     `json:"currency" example:"BRL"`
+	Notes     string                     `json:"notes" example:"Compra mensal"`
+}
+
 // UpdateReceiptRequest define a estrutura para atualizar um recibo.
 // Todos os campos são ponteiros para permitir atualizações parciais.
 type UpdateReceiptRequest struct {
@@ -77,6 +99,134 @@ func GetReceiptsBasicHandler(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, basics)
+}
+
+// @Summary Create a receipt manually
+// @Description Create a new receipt with items manually (without QR code scanning)
+// @Tags notasfiscais
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body CreateReceiptRequest true "Receipt data"
+// @Success 201 {object} map[string]interface{} "Receipt created successfully"
+// @Failure 400 {object} ErrorResponse "Dados inválidos | Categoria não encontrada ou não pertence ao usuário"
+// @Failure 401 {object} ErrorResponse "Unauthorized - Invalid or missing token"
+// @Failure 500 {object} ErrorResponse "Erro ao criar nota fiscal. Por favor, tente novamente"
+// @Router /receipt [post]
+func CreateReceiptHandler(ctx *gin.Context) {
+	userID, _ := ctx.Get("user_id")
+
+	// Valida o body da requisição
+	var request CreateReceiptRequest
+	if err := ctx.ShouldBindJSON(&request); err != nil {
+		sendError(ctx, http.StatusBadRequest, "Dados inválidos. Verifique os campos obrigatórios: storeName, date, items (com productName, productUnit, categoryId, quantity, unitPrice, total) e total")
+		return
+	}
+
+	// Valida se o usuário tem acesso às categorias fornecidas
+	categoryIDs := make([]uint, len(request.Items))
+	for i, item := range request.Items {
+		categoryIDs[i] = item.CategoryID
+	}
+
+	var categoryCount int64
+	db.Model(&schemas.Category{}).
+		Where("id IN ? AND user_id = ?", categoryIDs, userID).
+		Count(&categoryCount)
+
+	if int(categoryCount) != len(categoryIDs) {
+		sendError(ctx, http.StatusBadRequest, "Uma ou mais categorias não foram encontradas ou não pertencem ao usuário autenticado")
+		return
+	}
+
+	// Define valores padrão
+	if request.Currency == "" {
+		request.Currency = "BRL"
+	}
+
+	// Inicia transação para garantir consistência
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Cria o receipt
+	receipt := schemas.Receipt{
+		UserID:     userID.(uint),
+		StoreName:  request.StoreName,
+		Date:       request.Date,
+		Subtotal:   request.Subtotal,
+		Discount:   request.Discount,
+		Total:      request.Total,
+		Currency:   request.Currency,
+		Confidence: 1.0, // Criação manual = 100% de confiança
+		Notes:      request.Notes,
+	}
+
+	if err := tx.Create(&receipt).Error; err != nil {
+		tx.Rollback()
+		logger.ErrorF("error creating receipt: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Erro ao criar nota fiscal. Por favor, tente novamente")
+		return
+	}
+
+	// Processa cada item
+	for _, itemReq := range request.Items {
+		// Busca ou cria o produto
+		var product schemas.Product
+		if err := tx.Where("name = ? AND unity = ?", itemReq.ProductName, itemReq.ProductUnit).
+			First(&product).Error; err != nil {
+			// Produto não existe, cria um novo
+			product = schemas.Product{
+				Name:  itemReq.ProductName,
+				Unity: itemReq.ProductUnit,
+			}
+			if err := tx.Create(&product).Error; err != nil {
+				tx.Rollback()
+				logger.ErrorF("error creating product: %v", err.Error())
+				sendError(ctx, http.StatusInternalServerError, "Erro ao criar produto. Por favor, tente novamente")
+				return
+			}
+		}
+
+		// Cria o item do recibo
+		receiptItem := schemas.ReceiptItem{
+			ReceiptID:  receipt.ID,
+			CategoryID: itemReq.CategoryID,
+			ProductID:  product.ID,
+			Quantity:   itemReq.Quantity,
+			UnitPrice:  itemReq.UnitPrice,
+			Total:      itemReq.Total,
+		}
+
+		if err := tx.Create(&receiptItem).Error; err != nil {
+			tx.Rollback()
+			logger.ErrorF("error creating receipt item: %v", err.Error())
+			sendError(ctx, http.StatusInternalServerError, "Erro ao criar item da nota fiscal. Por favor, tente novamente")
+			return
+		}
+	}
+
+	// Commit da transação
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		logger.ErrorF("error committing transaction: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Erro ao salvar nota fiscal. Por favor, tente novamente")
+		return
+	}
+
+	// Busca o receipt completo com todos os relacionamentos
+	var completeReceipt schemas.Receipt
+	db.Preload("Items.Category").
+		Preload("Items.Product").
+		First(&completeReceipt, receipt.ID)
+
+	ctx.JSON(http.StatusCreated, gin.H{
+		"message": "Nota fiscal criada com sucesso",
+		"data":    completeReceipt.ToResponse(),
+	})
 }
 
 // @Summary Delete a receipt
