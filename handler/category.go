@@ -153,7 +153,7 @@ func CreateCategoryHandler(ctx *gin.Context) {
 // @Router /categories [get]
 func ListCategoriesHandler(ctx *gin.Context) {
 	userID, _ := ctx.Get("user_id")
-	
+
 	var categories []schemas.Category
 	if err := db.Where("user_id = ?", userID).Order("name ASC").Find(&categories).Error; err != nil {
 		logger.ErrorF("error listing categories: %v", err.Error())

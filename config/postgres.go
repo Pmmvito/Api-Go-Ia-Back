@@ -55,7 +55,7 @@ func InitializePostgreSQL() (*gorm.DB, error) {
 // Esta função deve ser chamada após o registro de um novo usuário
 func CreateDefaultCategoriesForUser(db *gorm.DB, userID uint) error {
 	logger := GetLogger("postgres")
-	
+
 	// Categorias padrão reformuladas para serem DISTINTAS e não confundir a IA
 	// Cada categoria tem um foco ÚNICO e específico
 	defaultCategories := []schemas.Category{
@@ -89,7 +89,7 @@ func CreateDefaultCategoriesForUser(db *gorm.DB, userID uint) error {
 			return err
 		}
 	}
-	
+
 	logger.InfoF("Categorias padrão criadas para usuário %d", userID)
 	return nil
 }
