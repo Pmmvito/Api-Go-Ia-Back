@@ -84,9 +84,11 @@ func CreateCategoryHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Verifica se existe uma categoria deletada com o mesmo nome
+	userID, _ := ctx.Get("user_id")
+
+	// Verifica se existe uma categoria deletada com o mesmo nome PARA ESTE USUÁRIO
 	var existingCategory schemas.Category
-	err := db.Unscoped().Where("name = ?", request.Name).First(&existingCategory).Error
+	err := db.Unscoped().Where("name = ? AND user_id = ?", request.Name, userID).First(&existingCategory).Error
 
 	if err == nil {
 		// Categoria encontrada - verifica se está deletada
@@ -119,6 +121,7 @@ func CreateCategoryHandler(ctx *gin.Context) {
 
 	// Categoria não existe, cria uma nova
 	category := schemas.Category{
+		UserID:      userID.(uint),
 		Name:        request.Name,
 		Description: request.Description,
 		Icon:        request.Icon,
@@ -149,8 +152,10 @@ func CreateCategoryHandler(ctx *gin.Context) {
 // @Failure 500 {object} ErrorResponse "Erro ao buscar categorias no banco de dados. Por favor, tente novamente"
 // @Router /categories [get]
 func ListCategoriesHandler(ctx *gin.Context) {
+	userID, _ := ctx.Get("user_id")
+	
 	var categories []schemas.Category
-	if err := db.Order("name ASC").Find(&categories).Error; err != nil {
+	if err := db.Where("user_id = ?", userID).Order("name ASC").Find(&categories).Error; err != nil {
 		logger.ErrorF("error listing categories: %v", err.Error())
 		sendError(ctx, http.StatusInternalServerError, "Erro ao buscar categorias no banco de dados. Por favor, tente novamente")
 		return
@@ -191,10 +196,10 @@ func GetCategoryHandler(ctx *gin.Context) {
 
 	userID, _ := ctx.Get("user_id")
 
-	// Busca a categoria
+	// Busca a categoria garantindo que pertence ao usuário
 	var category schemas.Category
-	if err := db.First(&category, id).Error; err != nil {
-		sendError(ctx, http.StatusNotFound, "Categoria não encontrada. Verifique se o ID está correto e se a categoria não foi deletada")
+	if err := db.Where("id = ? AND user_id = ?", id, userID).First(&category).Error; err != nil {
+		sendError(ctx, http.StatusNotFound, "Categoria não encontrada ou não pertence ao usuário autenticado")
 		return
 	}
 
@@ -283,6 +288,8 @@ func UpdateCategoryHandler(ctx *gin.Context) {
 		return
 	}
 
+	userID, _ := ctx.Get("user_id")
+
 	var request UpdateCategoryRequest
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		logger.ErrorF("validation error: %v", err.Error())
@@ -291,8 +298,8 @@ func UpdateCategoryHandler(ctx *gin.Context) {
 	}
 
 	var category schemas.Category
-	if err := db.First(&category, id).Error; err != nil {
-		sendError(ctx, http.StatusNotFound, "Categoria não encontrada. Verifique se o ID está correto e se a categoria não foi deletada")
+	if err := db.Where("id = ? AND user_id = ?", id, userID).First(&category).Error; err != nil {
+		sendError(ctx, http.StatusNotFound, "Categoria não encontrada ou não pertence ao usuário autenticado")
 		return
 	}
 
@@ -353,9 +360,11 @@ func DeleteCategoryHandler(ctx *gin.Context) {
 		return
 	}
 
+	userID, _ := ctx.Get("user_id")
+
 	var category schemas.Category
-	if err := db.First(&category, id).Error; err != nil {
-		sendError(ctx, http.StatusNotFound, "Categoria não encontrada. Verifique se o ID está correto e se a categoria não foi deletada anteriormente")
+	if err := db.Where("id = ? AND user_id = ?", id, userID).First(&category).Error; err != nil {
+		sendError(ctx, http.StatusNotFound, "Categoria não encontrada ou não pertence ao usuário autenticado")
 		return
 	}
 
@@ -365,11 +374,11 @@ func DeleteCategoryHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Busca a categoria "Não categorizado"
+	// Busca a categoria "Não categorizado" DO USUÁRIO
 	var uncategorized schemas.Category
-	if err := db.Where("name = ?", "Não categorizado").First(&uncategorized).Error; err != nil {
-		logger.ErrorF("'Não categorizado' category not found: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Categoria do sistema 'Não categorizado' não foi encontrada. Por favor, restaure as categorias padrão")
+	if err := db.Where("name = ? AND user_id = ?", "Não categorizado", userID).First(&uncategorized).Error; err != nil {
+		logger.ErrorF("'Não categorizado' category not found for user %v: %v", userID, err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Categoria do sistema 'Não categorizado' não foi encontrada. Por favor, entre em contato com o suporte")
 		return
 	}
 
@@ -485,9 +494,9 @@ func GetCategoryGraphHandler(ctx *gin.Context) {
 		}
 	}
 
-	// 4. Buscar todas as categorias usando GORM
+	// 4. Buscar todas as categorias DO USUÁRIO usando GORM
 	var categories []schemas.Category
-	if err := db.Find(&categories).Error; err != nil {
+	if err := db.Where("user_id = ?", userID).Find(&categories).Error; err != nil {
 		logger.ErrorF("error finding categories: %v", err.Error())
 		sendError(ctx, http.StatusInternalServerError, "Erro ao buscar categorias. Por favor, tente novamente")
 		return

@@ -109,8 +109,8 @@ func ScanQRCodeConfirmHandler(ctx *gin.Context) {
 		}
 	}
 
-	// Usa a função de categorização existente
-	categorizationResult, err := categorizeItemsWithAI(nfceItems)
+	// Usa a função de categorização existente (passando userID)
+	categorizationResult, err := categorizeItemsWithAI(nfceItems, userID.(uint))
 	if err != nil {
 		logger.ErrorF("❌ AI categorization failed: %v", err.Error())
 		sendError(ctx, http.StatusInternalServerError, fmt.Sprintf("AI categorization error: %v", err.Error()))
@@ -183,9 +183,9 @@ func ScanQRCodeConfirmHandler(ctx *gin.Context) {
 			for _, item := range activeItems {
 				categoryID := categoryMap[item.TempID]
 				if categoryID == 0 {
-					// Fallback para categoria "Outros"
+					// Fallback para categoria "Outros" DO USUÁRIO
 					var defaultCategory schemas.Category
-					if err := tx.Where("name = ?", "Outros").First(&defaultCategory).Error; err == nil {
+					if err := tx.Where("name = ? AND user_id = ?", "Outros", userID.(uint)).First(&defaultCategory).Error; err == nil {
 						categoryID = defaultCategory.ID
 						logger.InfoF("⚠️  [Background] Using default category 'Outros' (ID: %d) for item #%d", categoryID, item.TempID)
 					}

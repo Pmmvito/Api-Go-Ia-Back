@@ -304,9 +304,9 @@ func RecategorizeItemsHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Busca todas as categorias disponíveis
+	// Busca todas as categorias DO USUÁRIO
 	var categories []schemas.Category
-	if err := db.Find(&categories).Error; err != nil {
+	if err := db.Where("user_id = ?", userID).Find(&categories).Error; err != nil {
 		logger.ErrorF("error finding categories: %v", err.Error())
 		sendError(ctx, http.StatusInternalServerError, "Error finding categories")
 		return

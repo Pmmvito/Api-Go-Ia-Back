@@ -251,8 +251,8 @@ type CategorizationResult struct {
 }
 
 // categorizeItemsWithAI usa o Gemini para categorizar os itens extraídos do scraping
-func categorizeItemsWithAI(items []NFCeItem) (*CategorizationResult, error) {
-	logger.InfoF("🤖 categorizeItemsWithAI called with %d items", len(items))
+func categorizeItemsWithAI(items []NFCeItem, userID uint) (*CategorizationResult, error) {
+	logger.InfoF("🤖 categorizeItemsWithAI called with %d items for user %d", len(items), userID)
 
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey == "" {
@@ -275,9 +275,9 @@ func categorizeItemsWithAI(items []NFCeItem) (*CategorizationResult, error) {
 	}
 	logger.InfoF("🔧 Using API version: %s", apiVersion)
 
-	// Busca categorias disponíveis
+	// Busca categorias disponíveis DO USUÁRIO
 	var categories []schemas.Category
-	db.Order("name ASC").Find(&categories)
+	db.Where("user_id = ?", userID).Order("name ASC").Find(&categories)
 
 	if len(categories) == 0 {
 		logger.ErrorF("❌ No categories found in database")

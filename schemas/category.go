@@ -8,14 +8,17 @@ import (
 
 // Category representa uma categoria de produto no banco de dados.
 // Inclui detalhes como nome, descrição, ícone e cor.
+// Cada usuário tem suas próprias categorias individuais.
 type Category struct {
 	gorm.Model
-	Name         string        `json:"name" gorm:"unique;not null"`    // Nome da categoria
-	Description  string        `json:"description"`                    // Descrição da categoria
-	Icon         string        `json:"icon"`                           // Emoji ou ícone representando a categoria
-	Color        string        `json:"color"`                          // Código de cor hexadecimal para a categoria (ex: #FF5733)
-	ReceiptItems []ReceiptItem `json:"-" gorm:"foreignKey:CategoryID"` // Relacionamento HasMany com ReceiptItems
-	ListItems    []ListItem    `json:"-" gorm:"foreignKey:CategoryID"` // Relacionamento HasMany com ListItems
+	UserID       uint          `json:"userId" gorm:"not null;index:idx_user_category"`                        // ID do usuário dono da categoria
+	Name         string        `json:"name" gorm:"not null;index:idx_user_category"`                          // Nome da categoria
+	Description  string        `json:"description"`                                                           // Descrição da categoria
+	Icon         string        `json:"icon"`                                                                  // Emoji ou ícone representando a categoria
+	Color        string        `json:"color"`                                                                 // Código de cor hexadecimal para a categoria (ex: #FF5733)
+	User         User          `json:"-" gorm:"foreignKey:UserID"`                                            // Relacionamento BelongsTo com User
+	ReceiptItems []ReceiptItem `json:"-" gorm:"foreignKey:CategoryID"`                                        // Relacionamento HasMany com ReceiptItems
+	ListItems    []ListItem    `json:"-" gorm:"foreignKey:CategoryID"`                                        // Relacionamento HasMany com ListItems
 }
 
 // CategoryResponse define a estrutura dos dados da categoria enviados nas respostas da API.

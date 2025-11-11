@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/Pmmvito/Golang-Api-Exemple/config"
 	"github.com/Pmmvito/Golang-Api-Exemple/schemas"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -97,6 +98,13 @@ func RegisterHandler(ctx *gin.Context) {
 		logger.ErrorF("error creating user: %v", err.Error())
 		sendError(ctx, http.StatusInternalServerError, "Erro ao criar usuário no banco de dados. Por favor, tente novamente mais tarde")
 		return
+	}
+
+	// Cria categorias padrão para o novo usuário
+	if err := config.CreateDefaultCategoriesForUser(db, user.ID); err != nil {
+		logger.ErrorF("error creating default categories for user: %v", err.Error())
+		// Não falha o registro por isso, mas loga o erro
+		// O usuário pode criar suas categorias manualmente depois
 	}
 
 	// Gera token JWT
