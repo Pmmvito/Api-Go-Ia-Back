@@ -229,7 +229,7 @@ func ListCategoriesSummaryHandler(ctx *gin.Context) {
 		ItemCount  int
 	}
 	var counts []CategoryCount
-	
+
 	// Query base para contagem
 	query := db.Table("receipt_items").
 		Select("category_id, COUNT(*) as item_count").
@@ -421,9 +421,9 @@ func GetCategoryHandler(ctx *gin.Context) {
 	response := gin.H{
 		"message": "Category retrieved successfully",
 		"data": gin.H{
-			"category":  category.ToResponse(),
-			"items":     items,
-			"itemCount": len(items),
+			"category":   category.ToResponse(),
+			"items":      items,
+			"itemCount":  len(items),
 			"totalValue": totalValue,
 		},
 		"summary": gin.H{
