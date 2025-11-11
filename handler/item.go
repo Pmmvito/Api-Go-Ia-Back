@@ -49,7 +49,7 @@ func GetItemsHandler(ctx *gin.Context) {
 func GetItemByIDHandler(ctx *gin.Context) {
 	id := ctx.Param("id")
 	userID, _ := ctx.Get("user_id")
-	
+
 	var item schemas.ReceiptItem
 	// Busca o item e garante que pertence ao usuário autenticado
 	if err := db.Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
