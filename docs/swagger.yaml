@@ -587,6 +587,18 @@ paths:
       - application/json
       description: Get all categories with item count in a lightweight format (no
         timestamps). Ideal for lists and dropdowns. 650x faster than full endpoint.
+        Supports optional period filtering.
+      parameters:
+      - description: 'Start date for filtering (format: YYYY-MM-DD)'
+        example: "2024-01-01"
+        in: query
+        name: start_date
+        type: string
+      - description: 'End date for filtering (format: YYYY-MM-DD)'
+        example: "2024-12-31"
+        in: query
+        name: end_date
+        type: string
       produces:
       - application/json
       responses:
@@ -713,13 +725,33 @@ paths:
       consumes:
       - application/json
       description: Get details of a specific category by ID including all items that
-        belong to this category
+        belong to this category. Supports period filtering and pagination.
       parameters:
       - description: Category ID
         example: 1
         in: path
         name: id
         required: true
+        type: integer
+      - description: 'Start date for filtering (format: YYYY-MM-DD)'
+        example: "2024-01-01"
+        in: query
+        name: start_date
+        type: string
+      - description: 'End date for filtering (format: YYYY-MM-DD)'
+        example: "2024-12-31"
+        in: query
+        name: end_date
+        type: string
+      - description: 'Page number (default: 1)'
+        example: 1
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 50)'
+        example: 50
+        in: query
+        name: limit
         type: integer
       produces:
       - application/json
@@ -730,7 +762,8 @@ paths:
             additionalProperties: true
             type: object
         "400":
-          description: ID da categoria é obrigatório na URL
+          description: ID da categoria é obrigatório na URL | Parâmetro 'page' inválido
+            | Parâmetro 'limit' inválido
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "401":

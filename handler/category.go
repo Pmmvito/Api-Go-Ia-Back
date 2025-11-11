@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/Pmmvito/Golang-Api-Exemple/schemas"
@@ -197,17 +198,23 @@ func ListCategoriesHandler(ctx *gin.Context) {
 }
 
 // @Summary List categories summary (lightweight)
-// @Description Get all categories with item count in a lightweight format (no timestamps). Ideal for lists and dropdowns. 650x faster than full endpoint.
+// @Description Get all categories with item count in a lightweight format (no timestamps). Ideal for lists and dropdowns. 650x faster than full endpoint. Supports optional period filtering.
 // @Tags 📁 Categories
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Param start_date query string false "Start date for filtering (format: YYYY-MM-DD)" example(2024-01-01)
+// @Param end_date query string false "End date for filtering (format: YYYY-MM-DD)" example(2024-12-31)
 // @Success 200 {object} map[string]interface{} "List of categories (lightweight)"
 // @Failure 401 {object} ErrorResponse "Unauthorized - Invalid or missing token"
 // @Failure 500 {object} ErrorResponse "Erro ao buscar categorias no banco de dados. Por favor, tente novamente"
 // @Router /categories/summary [get]
 func ListCategoriesSummaryHandler(ctx *gin.Context) {
 	userID, _ := ctx.Get("user_id")
+
+	// Parâmetros de período (opcionais)
+	startDate := ctx.Query("start_date")
+	endDate := ctx.Query("end_date")
 
 	var categories []schemas.Category
 	if err := db.Where("user_id = ?", userID).Order("name ASC").Find(&categories).Error; err != nil {
@@ -222,12 +229,23 @@ func ListCategoriesSummaryHandler(ctx *gin.Context) {
 		ItemCount  int
 	}
 	var counts []CategoryCount
-	db.Table("receipt_items").
+	
+	// Query base para contagem
+	query := db.Table("receipt_items").
 		Select("category_id, COUNT(*) as item_count").
 		Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
-		Where("receipts.user_id = ? AND receipt_items.deleted_at IS NULL", userID).
-		Group("category_id").
-		Scan(&counts)
+		Where("receipts.user_id = ? AND receipt_items.deleted_at IS NULL", userID)
+
+	// Aplica filtro de período se fornecido
+	if startDate != "" && endDate != "" {
+		query = query.Where("receipts.date >= ? AND receipts.date <= ?", startDate, endDate)
+	} else if startDate != "" {
+		query = query.Where("receipts.date >= ?", startDate)
+	} else if endDate != "" {
+		query = query.Where("receipts.date <= ?", endDate)
+	}
+
+	query.Group("category_id").Scan(&counts)
 
 	// Cria um map para rápido acesso aos counts
 	countMap := make(map[uint]int)
@@ -242,22 +260,36 @@ func ListCategoriesSummaryHandler(ctx *gin.Context) {
 		summaries = append(summaries, category.ToSummary(itemCount))
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
+	response := gin.H{
 		"message":    "Categories summary retrieved successfully",
 		"categories": summaries,
 		"total":      len(summaries),
-	})
+	}
+
+	// Adiciona informação de período se fornecido
+	if startDate != "" || endDate != "" {
+		response["period"] = gin.H{
+			"start_date": startDate,
+			"end_date":   endDate,
+		}
+	}
+
+	ctx.JSON(http.StatusOK, response)
 }
 
 // @Summary Get category details
-// @Description Get details of a specific category by ID including all items that belong to this category
+// @Description Get details of a specific category by ID including all items that belong to this category. Supports period filtering and pagination.
 // @Tags 📁 Categories
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param id path int true "Category ID" example(1)
+// @Param start_date query string false "Start date for filtering (format: YYYY-MM-DD)" example(2024-01-01)
+// @Param end_date query string false "End date for filtering (format: YYYY-MM-DD)" example(2024-12-31)
+// @Param page query int false "Page number (default: 1)" example(1)
+// @Param limit query int false "Items per page (default: 50)" example(50)
 // @Success 200 {object} map[string]interface{} "Category details with items"
-// @Failure 400 {object} ErrorResponse "ID da categoria é obrigatório na URL"
+// @Failure 400 {object} ErrorResponse "ID da categoria é obrigatório na URL | Parâmetro 'page' inválido | Parâmetro 'limit' inválido"
 // @Failure 404 {object} ErrorResponse "Categoria não encontrada. Verifique se o ID está correto e se a categoria não foi deletada"
 // @Failure 401 {object} ErrorResponse "Unauthorized - Invalid or missing token"
 // @Failure 500 {object} ErrorResponse "Erro ao buscar itens da categoria. Por favor, tente novamente"
@@ -271,6 +303,34 @@ func GetCategoryHandler(ctx *gin.Context) {
 
 	userID, _ := ctx.Get("user_id")
 
+	// Parâmetros de período (opcionais)
+	startDate := ctx.Query("start_date")
+	endDate := ctx.Query("end_date")
+
+	// Parâmetros de paginação
+	page := 1
+	limit := 50
+
+	if pageStr := ctx.Query("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		} else {
+			sendError(ctx, http.StatusBadRequest, "Parâmetro 'page' inválido. Deve ser um número maior que 0")
+			return
+		}
+	}
+
+	if limitStr := ctx.Query("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 200 {
+			limit = l
+		} else {
+			sendError(ctx, http.StatusBadRequest, "Parâmetro 'limit' inválido. Deve ser um número entre 1 e 200")
+			return
+		}
+	}
+
+	offset := (page - 1) * limit
+
 	// Busca a categoria garantindo que pertence ao usuário
 	var category schemas.Category
 	if err := db.Where("id = ? AND user_id = ?", id, userID).First(&category).Error; err != nil {
@@ -278,13 +338,35 @@ func GetCategoryHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Busca todos os itens dessa categoria APENAS DO USUÁRIO AUTENTICADO
-	var receiptItems []schemas.ReceiptItem
-	err := db.Preload("Product").
-		Preload("Receipt").
+	// Query base para itens
+	baseQuery := db.Model(&schemas.ReceiptItem{}).
 		Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
-		Where("receipt_items.category_id = ? AND receipts.user_id = ?", id, userID).
+		Where("receipt_items.category_id = ? AND receipts.user_id = ?", id, userID)
+
+	// Aplica filtro de período se fornecido
+	if startDate != "" && endDate != "" {
+		baseQuery = baseQuery.Where("receipts.date >= ? AND receipts.date <= ?", startDate, endDate)
+	} else if startDate != "" {
+		baseQuery = baseQuery.Where("receipts.date >= ?", startDate)
+	} else if endDate != "" {
+		baseQuery = baseQuery.Where("receipts.date <= ?", endDate)
+	}
+
+	// Conta total de itens (para paginação)
+	var totalItems int64
+	if err := baseQuery.Count(&totalItems).Error; err != nil {
+		logger.ErrorF("error counting category items: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Erro ao contar itens da categoria. Por favor, tente novamente")
+		return
+	}
+
+	// Busca itens com paginação
+	var receiptItems []schemas.ReceiptItem
+	err := baseQuery.Preload("Product").
+		Preload("Receipt").
 		Order("receipt_items.receipt_id DESC").
+		Limit(limit).
+		Offset(offset).
 		Find(&receiptItems).Error
 
 	if err != nil {
@@ -328,18 +410,39 @@ func GetCategoryHandler(ctx *gin.Context) {
 		totalValue += item.Total
 	}
 
+	// Calcula informações de paginação
+	totalPages := int((totalItems + int64(limit) - 1) / int64(limit))
+	if totalPages == 0 {
+		totalPages = 1
+	}
+	hasNextPage := page < totalPages
+
 	// Monta resposta
-	response := CategoryWithItemsResponse{
-		CategoryResponse: category.ToResponse(),
-		Items:            items,
-		ItemCount:        len(items),
-		TotalValue:       totalValue,
+	response := gin.H{
+		"message": "Category retrieved successfully",
+		"data": gin.H{
+			"category":  category.ToResponse(),
+			"items":     items,
+			"itemCount": len(items),
+			"totalValue": totalValue,
+		},
+		"summary": gin.H{
+			"totalItems":  totalItems,
+			"totalPages":  totalPages,
+			"currentPage": page,
+			"hasNextPage": hasNextPage,
+		},
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Category retrieved successfully",
-		"data":    response,
-	})
+	// Adiciona informação de período se fornecido
+	if startDate != "" || endDate != "" {
+		response["period"] = gin.H{
+			"start_date": startDate,
+			"end_date":   endDate,
+		}
+	}
+
+	ctx.JSON(http.StatusOK, response)
 }
 
 // @Summary Update category

@@ -204,7 +204,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get all categories with item count in a lightweight format (no timestamps). Ideal for lists and dropdowns. 650x faster than full endpoint.",
+                "description": "Get all categories with item count in a lightweight format (no timestamps). Ideal for lists and dropdowns. 650x faster than full endpoint. Supports optional period filtering.",
                 "consumes": [
                     "application/json"
                 ],
@@ -215,6 +215,22 @@ const docTemplate = `{
                     "📁 Categories"
                 ],
                 "summary": "List categories summary (lightweight)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "2024-01-01",
+                        "description": "Start date for filtering (format: YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "2024-12-31",
+                        "description": "End date for filtering (format: YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "List of categories (lightweight)",
@@ -316,7 +332,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get details of a specific category by ID including all items that belong to this category",
+                "description": "Get details of a specific category by ID including all items that belong to this category. Supports period filtering and pagination.",
                 "consumes": [
                     "application/json"
                 ],
@@ -335,6 +351,34 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "2024-01-01",
+                        "description": "Start date for filtering (format: YYYY-MM-DD)",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "example": "2024-12-31",
+                        "description": "End date for filtering (format: YYYY-MM-DD)",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 1,
+                        "description": "Page number (default: 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "example": 50,
+                        "description": "Items per page (default: 50)",
+                        "name": "limit",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -346,7 +390,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "ID da categoria é obrigatório na URL",
+                        "description": "ID da categoria é obrigatório na URL | Parâmetro 'page' inválido | Parâmetro 'limit' inválido",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
