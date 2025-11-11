@@ -139,6 +139,8 @@ func UpdateProductHandler(ctx *gin.Context) {
 		return
 	}
 
+	userID, _ := ctx.Get("user_id")
+
 	var request UpdateProductRequest
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		logger.ErrorF("validation error: %v", err.Error())
@@ -146,9 +148,13 @@ func UpdateProductHandler(ctx *gin.Context) {
 		return
 	}
 
+	// Verifica se o produto existe e pertence ao usuário (através de algum receipt_item)
 	var product schemas.Product
-	if err := db.First(&product, id).Error; err != nil {
-		sendError(ctx, http.StatusNotFound, "Product not found")
+	if err := db.Joins("JOIN receipt_items ON receipt_items.product_id = products.id").
+		Joins("JOIN receipts ON receipts.id = receipt_items.receipt_id").
+		Where("products.id = ? AND receipts.user_id = ?", id, userID).
+		First(&product).Error; err != nil {
+		sendError(ctx, http.StatusNotFound, "Produto não encontrado ou você não tem permissão para atualizá-lo")
 		return
 	}
 
@@ -162,7 +168,7 @@ func UpdateProductHandler(ctx *gin.Context) {
 
 	if err := db.Save(&product).Error; err != nil {
 		logger.ErrorF("error updating product: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error updating product")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao atualizar produto no banco de dados. Por favor, tente novamente")
 		return
 	}
 

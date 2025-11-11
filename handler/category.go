@@ -189,6 +189,8 @@ func GetCategoryHandler(ctx *gin.Context) {
 		return
 	}
 
+	userID, _ := ctx.Get("user_id")
+
 	// Busca a categoria
 	var category schemas.Category
 	if err := db.First(&category, id).Error; err != nil {
@@ -196,12 +198,13 @@ func GetCategoryHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Busca todos os itens dessa categoria com informações do recibo usando GORM
+	// Busca todos os itens dessa categoria APENAS DO USUÁRIO AUTENTICADO
 	var receiptItems []schemas.ReceiptItem
 	err := db.Preload("Product").
 		Preload("Receipt").
-		Where("category_id = ?", id).
-		Order("receipt_id DESC").
+		Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
+		Where("receipt_items.category_id = ? AND receipts.user_id = ?", id, userID).
+		Order("receipt_items.receipt_id DESC").
 		Find(&receiptItems).Error
 
 	if err != nil {

@@ -48,10 +48,14 @@ func GetItemsHandler(ctx *gin.Context) {
 // @Router /item/{id} [get]
 func GetItemByIDHandler(ctx *gin.Context) {
 	id := ctx.Param("id")
+	userID, _ := ctx.Get("user_id")
+	
 	var item schemas.ReceiptItem
-	// Utiliza a conexão de banco de dados global 'db'
-	if err := db.Where("id = ?", id).First(&item).Error; err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Item não encontrado"})
+	// Busca o item e garante que pertence ao usuário autenticado
+	if err := db.Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
+		Where("receipt_items.id = ? AND receipts.user_id = ?", id, userID).
+		First(&item).Error; err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "Item não encontrado ou não pertence ao usuário autenticado"})
 		return
 	}
 	ctx.JSON(http.StatusOK, item)
@@ -134,6 +138,8 @@ func UpdateItemHandler(ctx *gin.Context) {
 		return
 	}
 
+	userID, _ := ctx.Get("user_id")
+
 	var request UpdateItemRequest
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		logger.ErrorF("validation error: %v", err.Error())
@@ -142,8 +148,11 @@ func UpdateItemHandler(ctx *gin.Context) {
 	}
 
 	var item schemas.ReceiptItem
-	if err := db.First(&item, id).Error; err != nil {
-		sendError(ctx, http.StatusNotFound, "Item not found")
+	// Busca o item e garante que pertence ao usuário autenticado
+	if err := db.Joins("INNER JOIN receipts ON receipts.id = receipt_items.receipt_id").
+		Where("receipt_items.id = ? AND receipts.user_id = ?", id, userID).
+		First(&item).Error; err != nil {
+		sendError(ctx, http.StatusNotFound, "Item não encontrado ou não pertence ao usuário autenticado")
 		return
 	}
 
@@ -166,7 +175,7 @@ func UpdateItemHandler(ctx *gin.Context) {
 
 	if err := db.Save(&item).Error; err != nil {
 		logger.ErrorF("error updating item: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Error updating item")
+		sendError(ctx, http.StatusInternalServerError, "Erro ao atualizar item no banco de dados. Por favor, tente novamente")
 		return
 	}
 
