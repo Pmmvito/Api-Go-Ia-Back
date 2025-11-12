@@ -9,7 +9,7 @@ import (
 
 // @Summary Get AI Worker Pool status
 // @Description Get current status and statistics of the AI Worker Pool (queue size, processing, etc)
-// @Tags 🤖 AI
+// @Tags  AI
 // @Accept json
 // @Produce json
 // @Security BearerAuth
