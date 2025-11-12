@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/Pmmvito/Golang-Api-Exemple/config"
 	"github.com/Pmmvito/Golang-Api-Exemple/schemas"
@@ -158,5 +159,239 @@ func DeleteUserHandler(ctx *gin.Context) {
 		"shoppingListsDeleted": shoppingListsDeleted,
 		"listItemsDeleted":     listItemsDeleted,
 		"note":                 "Your email cannot be used to create a new account. Products are preserved if used by other users.",
+	})
+}
+
+// UpdateProfileRequest define a estrutura para atualizar perfil do usuário
+type UpdateProfileRequest struct {
+	Name  *string `json:"name,omitempty" example:"João Silva"`
+	Email *string `json:"email,omitempty" example:"novo@example.com"`
+}
+
+// VerifyEmailRequest define a estrutura para solicitar verificação de email
+type VerifyEmailRequest struct {
+	NewEmail string `json:"newEmail" binding:"required,email" example:"novo@example.com"`
+}
+
+// ConfirmEmailRequest define a estrutura para confirmar novo email
+type ConfirmEmailRequest struct {
+	NewEmail string `json:"newEmail" binding:"required,email" example:"novo@example.com"`
+	Token    string `json:"token" binding:"required,len=6" example:"123456"`
+}
+
+// EmailVerification armazena códigos de verificação de email
+type EmailVerification struct {
+	UserID    uint
+	NewEmail  string
+	Token     string
+	ExpiresAt time.Time
+	Used      bool
+}
+
+// Mapa temporário para armazenar verificações de email (em produção, use banco de dados)
+var emailVerifications = make(map[uint]*EmailVerification)
+
+// @Summary Update user profile
+// @Description Update user name. Email changes require verification code.
+// @Tags 👤 User
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body UpdateProfileRequest true "Profile data to update"
+// @Success 200 {object} map[string]interface{} "Profile updated successfully"
+// @Failure 400 {object} ErrorResponse "Dados inválidos | Nenhum campo para atualizar"
+// @Failure 401 {object} ErrorResponse "Unauthorized"
+// @Failure 500 {object} ErrorResponse "Erro ao atualizar perfil"
+// @Router /user/profile [patch]
+func UpdateProfileHandler(ctx *gin.Context) {
+	var request UpdateProfileRequest
+
+	if err := ctx.ShouldBindJSON(&request); err != nil {
+		logger.ErrorF("validation error: %v", err.Error())
+		sendError(ctx, http.StatusBadRequest, "Dados inválidos. Verifique os campos enviados")
+		return
+	}
+
+	// Pega usuário do contexto
+	userInterface, _ := ctx.Get("user")
+	user := userInterface.(schemas.User)
+
+	updated := false
+
+	// Atualiza nome se fornecido
+	if request.Name != nil && *request.Name != "" {
+		user.Name = *request.Name
+		updated = true
+	}
+
+	// Para email, precisamos de verificação - apenas retorna instrução
+	if request.Email != nil && *request.Email != "" {
+		ctx.JSON(http.StatusOK, gin.H{
+			"message": "Para alterar o email, use o endpoint POST /user/request-email-change",
+			"info":    "Alteração de email requer verificação por código enviado ao novo email",
+		})
+		return
+	}
+
+	if !updated {
+		sendError(ctx, http.StatusBadRequest, "Nenhum campo válido foi fornecido para atualização")
+		return
+	}
+
+	// Salva alterações
+	if err := db.Save(&user).Error; err != nil {
+		logger.ErrorF("error updating profile: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Erro ao atualizar perfil. Por favor, tente novamente")
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Perfil atualizado com sucesso",
+		"user":    user.ToResponse(),
+	})
+}
+
+// @Summary Request email change
+// @Description Send verification code to new email address
+// @Tags 👤 User
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body VerifyEmailRequest true "New email address"
+// @Success 200 {object} map[string]interface{} "Verification code sent"
+// @Failure 400 {object} ErrorResponse "Dados inválidos | Email já em uso"
+// @Failure 401 {object} ErrorResponse "Unauthorized"
+// @Failure 500 {object} ErrorResponse "Erro ao enviar código"
+// @Router /user/request-email-change [post]
+func RequestEmailChangeHandler(ctx *gin.Context) {
+	var request VerifyEmailRequest
+
+	if err := ctx.ShouldBindJSON(&request); err != nil {
+		logger.ErrorF("validation error: %v", err.Error())
+		sendError(ctx, http.StatusBadRequest, "Dados inválidos: email é obrigatório e deve ser válido")
+		return
+	}
+
+	// Pega usuário do contexto
+	userInterface, _ := ctx.Get("user")
+	user := userInterface.(schemas.User)
+
+	// Verifica se o novo email já existe
+	var existingUser schemas.User
+	if err := db.Where("email = ? AND id != ?", request.NewEmail, user.ID).First(&existingUser).Error; err == nil {
+		sendError(ctx, http.StatusBadRequest, "Este email já está em uso por outra conta")
+		return
+	}
+
+	// Gera código de verificação
+	code, err := GenerateRandomCode(6)
+	if err != nil {
+		logger.ErrorF("error generating verification code: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Erro ao gerar código de verificação")
+		return
+	}
+
+	// Armazena verificação (em produção, use banco de dados)
+	emailVerifications[user.ID] = &EmailVerification{
+		UserID:    user.ID,
+		NewEmail:  request.NewEmail,
+		Token:     code,
+		ExpiresAt: time.Now().Add(15 * time.Minute),
+		Used:      false,
+	}
+
+	// Envia email
+	emailService := config.NewEmailService()
+	if !emailService.IsConfigured() {
+		logger.ErrorF("email service not configured")
+		sendError(ctx, http.StatusInternalServerError, "Serviço de email não configurado")
+		return
+	}
+
+	if err := emailService.SendEmailVerificationCode(request.NewEmail, user.Name, code); err != nil {
+		logger.ErrorF("error sending email: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Erro ao enviar email de verificação")
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Código de verificação enviado para o novo email. Válido por 15 minutos.",
+	})
+}
+
+// @Summary Confirm email change
+// @Description Confirm email change with verification code
+// @Tags 👤 User
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body ConfirmEmailRequest true "New email and verification code"
+// @Success 200 {object} map[string]interface{} "Email updated successfully"
+// @Failure 400 {object} ErrorResponse "Dados inválidos"
+// @Failure 401 {object} ErrorResponse "Código inválido ou expirado | Unauthorized"
+// @Failure 500 {object} ErrorResponse "Erro ao atualizar email"
+// @Router /user/confirm-email-change [post]
+func ConfirmEmailChangeHandler(ctx *gin.Context) {
+	var request ConfirmEmailRequest
+
+	if err := ctx.ShouldBindJSON(&request); err != nil {
+		logger.ErrorF("validation error: %v", err.Error())
+		sendError(ctx, http.StatusBadRequest, "Dados inválidos: email e código (6 dígitos) são obrigatórios")
+		return
+	}
+
+	// Pega usuário do contexto
+	userInterface, _ := ctx.Get("user")
+	user := userInterface.(schemas.User)
+
+	// Verifica se existe verificação pendente
+	verification, exists := emailVerifications[user.ID]
+	if !exists {
+		sendError(ctx, http.StatusUnauthorized, "Nenhuma verificação de email pendente. Solicite um novo código")
+		return
+	}
+
+	// Valida código
+	if verification.Used {
+		sendError(ctx, http.StatusUnauthorized, "Código já utilizado. Solicite um novo código")
+		return
+	}
+
+	if time.Now().After(verification.ExpiresAt) {
+		sendError(ctx, http.StatusUnauthorized, "Código expirado. Solicite um novo código")
+		return
+	}
+
+	if verification.Token != request.Token {
+		sendError(ctx, http.StatusUnauthorized, "Código inválido")
+		return
+	}
+
+	if verification.NewEmail != request.NewEmail {
+		sendError(ctx, http.StatusBadRequest, "Email não corresponde ao da verificação")
+		return
+	}
+
+	// Verifica novamente se o email não foi usado por outra conta
+	var existingUser schemas.User
+	if err := db.Where("email = ? AND id != ?", request.NewEmail, user.ID).First(&existingUser).Error; err == nil {
+		sendError(ctx, http.StatusBadRequest, "Este email já está em uso por outra conta")
+		return
+	}
+
+	// Atualiza email
+	user.Email = request.NewEmail
+	if err := db.Save(&user).Error; err != nil {
+		logger.ErrorF("error updating email: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Erro ao atualizar email. Por favor, tente novamente")
+		return
+	}
+
+	// Marca verificação como usada
+	verification.Used = true
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Email atualizado com sucesso!",
+		"user":    user.ToResponse(),
 	})
 }

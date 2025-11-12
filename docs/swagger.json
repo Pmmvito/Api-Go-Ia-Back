@@ -89,6 +89,118 @@
                 }
             }
         },
+        "/auth/forgot-password": {
+            "post": {
+                "description": "Send a 6-digit code to user's email for password recovery. Code expires in 15 minutes.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "🔐 Authentication"
+                ],
+                "summary": "Request password reset",
+                "parameters": [
+                    {
+                        "description": "User email",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.ForgotPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reset code sent successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Dados inválidos: email é obrigatório e deve ser válido",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Usuário não encontrado com este email",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao gerar código de recuperação | Erro ao enviar email",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/reset-password": {
+            "post": {
+                "description": "Reset user password using the 6-digit code received by email",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "🔐 Authentication"
+                ],
+                "summary": "Reset password with code",
+                "parameters": [
+                    {
+                        "description": "Email, token and new password",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.ResetPasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Password reset successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Dados inválidos | Código deve ter 6 dígitos | Senha deve ter no mínimo 6 caracteres",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Código inválido ou expirado",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Usuário não encontrado",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao atualizar senha | Erro ao enviar email de confirmação",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/categories": {
             "get": {
                 "security": [
@@ -2032,6 +2144,180 @@
                     }
                 }
             }
+        },
+        "/user/confirm-email-change": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Confirm email change with verification code",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "👤 User"
+                ],
+                "summary": "Confirm email change",
+                "parameters": [
+                    {
+                        "description": "New email and verification code",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.ConfirmEmailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Email updated successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Dados inválidos",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Código inválido ou expirado | Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao atualizar email",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/profile": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update user name. Email changes require verification code.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "👤 User"
+                ],
+                "summary": "Update user profile",
+                "parameters": [
+                    {
+                        "description": "Profile data to update",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Profile updated successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Dados inválidos | Nenhum campo para atualizar",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao atualizar perfil",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/request-email-change": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Send verification code to new email address",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "👤 User"
+                ],
+                "summary": "Request email change",
+                "parameters": [
+                    {
+                        "description": "New email address",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.VerifyEmailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Verification code sent",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Dados inválidos | Email já em uso",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao enviar código",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -2046,6 +2332,23 @@
                 },
                 "user": {
                     "$ref": "#/definitions/schemas.UserResponse"
+                }
+            }
+        },
+        "handler.ConfirmEmailRequest": {
+            "type": "object",
+            "required": [
+                "newEmail",
+                "token"
+            ],
+            "properties": {
+                "newEmail": {
+                    "type": "string",
+                    "example": "novo@example.com"
+                },
+                "token": {
+                    "type": "string",
+                    "example": "123456"
                 }
             }
         },
@@ -2164,6 +2467,18 @@
                 },
                 "message": {
                     "type": "string"
+                }
+            }
+        },
+        "handler.ForgotPasswordRequest": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "joao@example.com"
                 }
             }
         },
@@ -2347,6 +2662,29 @@
                 }
             }
         },
+        "handler.ResetPasswordRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "newPassword",
+                "token"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "joao@example.com"
+                },
+                "newPassword": {
+                    "type": "string",
+                    "minLength": 6,
+                    "example": "novaSenha123"
+                },
+                "token": {
+                    "type": "string",
+                    "example": "123456"
+                }
+            }
+        },
         "handler.ScanQRCodeConfirmRequest": {
             "type": "object",
             "required": [
@@ -2483,6 +2821,19 @@
                 }
             }
         },
+        "handler.UpdateProfileRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "novo@example.com"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "João Silva"
+                }
+            }
+        },
         "handler.UpdateReceiptRequest": {
             "type": "object",
             "properties": {
@@ -2500,6 +2851,18 @@
                 },
                 "total": {
                     "type": "number"
+                }
+            }
+        },
+        "handler.VerifyEmailRequest": {
+            "type": "object",
+            "required": [
+                "newEmail"
+            ],
+            "properties": {
+                "newEmail": {
+                    "type": "string",
+                    "example": "novo@example.com"
                 }
             }
         },

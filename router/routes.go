@@ -21,6 +21,9 @@ func InitializeRoutes(router *gin.Engine) {
 	{
 		public.POST("/register", handler.RegisterHandler)
 		public.POST("/login", handler.LoginHandler)
+		// 🔑 Recuperação de senha
+		public.POST("/auth/forgot-password", handler.ForgotPasswordHandler)
+		public.POST("/auth/reset-password", handler.ResetPasswordHandler)
 	}
 
 	// Rotas protegidas (requerem autenticação JWT)
@@ -30,6 +33,11 @@ func InitializeRoutes(router *gin.Engine) {
 		protected.GET("/me", handler.MeHandler)
 		protected.POST("/logout", handler.LogoutHandler)
 		protected.DELETE("/user", handler.DeleteUserHandler) // 🗑️ Deletar conta do usuário
+
+		// 👤 Atualização de perfil
+		protected.PATCH("/user/profile", handler.UpdateProfileHandler)
+		protected.POST("/user/request-email-change", handler.RequestEmailChangeHandler)
+		protected.POST("/user/confirm-email-change", handler.ConfirmEmailChangeHandler)
 
 		// Rotas de uso de tokens da IA (apenas consulta - registro é automático)
 		protected.GET("/ai-usage", handler.GetAITokenUsageHandler)

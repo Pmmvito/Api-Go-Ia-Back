@@ -9,6 +9,18 @@ definitions:
       user:
         $ref: '#/definitions/schemas.UserResponse'
     type: object
+  handler.ConfirmEmailRequest:
+    properties:
+      newEmail:
+        example: novo@example.com
+        type: string
+      token:
+        example: "123456"
+        type: string
+    required:
+    - newEmail
+    - token
+    type: object
   handler.CreateCategoryRequest:
     properties:
       color:
@@ -94,6 +106,14 @@ definitions:
         type: string
       message:
         type: string
+    type: object
+  handler.ForgotPasswordRequest:
+    properties:
+      email:
+        example: joao@example.com
+        type: string
+    required:
+    - email
     type: object
   handler.ItemRecategorizationResult:
     properties:
@@ -222,6 +242,23 @@ definitions:
     - name
     - password
     type: object
+  handler.ResetPasswordRequest:
+    properties:
+      email:
+        example: joao@example.com
+        type: string
+      newPassword:
+        example: novaSenha123
+        minLength: 6
+        type: string
+      token:
+        example: "123456"
+        type: string
+    required:
+    - email
+    - newPassword
+    - token
+    type: object
   handler.ScanQRCodeConfirmRequest:
     properties:
       accessKey:
@@ -316,6 +353,15 @@ definitions:
       unity:
         type: string
     type: object
+  handler.UpdateProfileRequest:
+    properties:
+      email:
+        example: novo@example.com
+        type: string
+      name:
+        example: João Silva
+        type: string
+    type: object
   handler.UpdateReceiptRequest:
     properties:
       date:
@@ -328,6 +374,14 @@ definitions:
         type: number
       total:
         type: number
+    type: object
+  handler.VerifyEmailRequest:
+    properties:
+      newEmail:
+        example: novo@example.com
+        type: string
+    required:
+    - newEmail
     type: object
   schemas.AITokenUsageResponse:
     properties:
@@ -570,6 +624,82 @@ paths:
       summary: Obter resumo de uso de tokens
       tags:
       - ai-usage
+  /auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Send a 6-digit code to user's email for password recovery. Code
+        expires in 15 minutes.
+      parameters:
+      - description: User email
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Reset code sent successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 'Dados inválidos: email é obrigatório e deve ser válido'
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Usuário não encontrado com este email
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Erro ao gerar código de recuperação | Erro ao enviar email
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Request password reset
+      tags:
+      - "\U0001F510 Authentication"
+  /auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Reset user password using the 6-digit code received by email
+      parameters:
+      - description: Email, token and new password
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Password reset successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Dados inválidos | Código deve ter 6 dígitos | Senha deve ter
+            no mínimo 6 caracteres
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Código inválido ou expirado
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Usuário não encontrado
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Erro ao atualizar senha | Erro ao enviar email de confirmação
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Reset password with code
+      tags:
+      - "\U0001F510 Authentication"
   /categories:
     get:
       consumes:
@@ -1890,6 +2020,117 @@ paths:
       summary: Delete user account
       tags:
       - users
+  /user/confirm-email-change:
+    post:
+      consumes:
+      - application/json
+      description: Confirm email change with verification code
+      parameters:
+      - description: New email and verification code
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.ConfirmEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Email updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Dados inválidos
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Código inválido ou expirado | Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Erro ao atualizar email
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Confirm email change
+      tags:
+      - "\U0001F464 User"
+  /user/profile:
+    patch:
+      consumes:
+      - application/json
+      description: Update user name. Email changes require verification code.
+      parameters:
+      - description: Profile data to update
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Dados inválidos | Nenhum campo para atualizar
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Erro ao atualizar perfil
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update user profile
+      tags:
+      - "\U0001F464 User"
+  /user/request-email-change:
+    post:
+      consumes:
+      - application/json
+      description: Send verification code to new email address
+      parameters:
+      - description: New email address
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.VerifyEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Verification code sent
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Dados inválidos | Email já em uso
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Erro ao enviar código
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Request email change
+      tags:
+      - "\U0001F464 User"
 securityDefinitions:
   BearerAuth:
     description: 'Digite "Bearer" seguido do seu token JWT (obtido no login). Exemplo:
