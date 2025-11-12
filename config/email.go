@@ -26,14 +26,31 @@ func NewEmailService() *EmailService {
 	senderName := os.Getenv("SMTP_SENDER_NAME")
 	password := os.Getenv("SMTP_PASSWORD")
 
+	// Log das configurações (sem mostrar senha completa)
+	logger.InfoF("📧 Inicializando EmailService...")
+	logger.InfoF("📧 SMTP_HOST: '%s'", smtpHost)
+	logger.InfoF("📧 SMTP_PORT: '%s'", smtpPort)
+	logger.InfoF("📧 SMTP_EMAIL: '%s'", senderEmail)
+	logger.InfoF("📧 SMTP_SENDER_NAME: '%s'", senderName)
+	logger.InfoF("📧 SMTP_PASSWORD configurado: %t (tamanho: %d)", password != "", len(password))
+
 	if smtpHost == "" {
 		smtpHost = "smtp.gmail.com" // Default para Gmail
+		logger.InfoF("📧 Usando SMTP_HOST padrão: %s", smtpHost)
 	}
 	if smtpPort == "" {
 		smtpPort = "587" // Default porta TLS
+		logger.InfoF("📧 Usando SMTP_PORT padrão: %s", smtpPort)
 	}
 	if senderName == "" {
 		senderName = "Sistema de Notas Fiscais"
+		logger.InfoF("📧 Usando SMTP_SENDER_NAME padrão: %s", senderName)
+	}
+
+	if senderEmail == "" || password == "" {
+		logger.ErrorF("❌ EmailService NÃO configurado! SMTP_EMAIL ou SMTP_PASSWORD ausentes")
+	} else {
+		logger.InfoF("✅ EmailService configurado com sucesso")
 	}
 
 	auth := smtp.PlainAuth("", senderEmail, password, smtpHost)
@@ -348,7 +365,14 @@ func (e *EmailService) SendEmailVerificationCode(toEmail, userName, verification
 
 // sendEmail é o método privado que realmente envia o email
 func (e *EmailService) sendEmail(to, subject, htmlBody string) error {
+	// Log início
+	logger.InfoF("📧 Tentando enviar email para: %s", to)
+	logger.InfoF("📧 SMTP Host: %s:%s", e.SMTPHost, e.SMTPPort)
+	logger.InfoF("📧 Sender: %s", e.SenderEmail)
+	
 	if e.SenderEmail == "" || e.Password == "" {
+		logger.ErrorF("❌ Configurações de email não definidas! SMTP_EMAIL: '%s', SMTP_PASSWORD: %t", 
+			e.SenderEmail, e.Password != "")
 		return fmt.Errorf("configurações de email não definidas. Configure SMTP_EMAIL e SMTP_PASSWORD")
 	}
 
@@ -363,11 +387,15 @@ func (e *EmailService) sendEmail(to, subject, htmlBody string) error {
 
 	// Envia o email
 	addr := e.SMTPHost + ":" + e.SMTPPort
+	logger.InfoF("📧 Conectando em: %s", addr)
+	
 	err := smtp.SendMail(addr, e.auth, e.SenderEmail, []string{to}, message)
 	if err != nil {
+		logger.ErrorF("❌ Erro ao enviar email: %v", err)
 		return fmt.Errorf("erro ao enviar email: %v", err)
 	}
 
+	logger.InfoF("✅ Email enviado com sucesso para: %s", to)
 	return nil
 }
 
