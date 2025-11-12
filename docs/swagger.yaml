@@ -730,7 +730,7 @@ paths:
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "404":
-          description: Usuário não encontrado com este email
+          description: Usuário não encontrado
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "500":

@@ -233,7 +233,7 @@ const docTemplate = `{
                         }
                     },
                     "404": {
-                        "description": "Usuário não encontrado com este email",
+                        "description": "Usuário não encontrado",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }

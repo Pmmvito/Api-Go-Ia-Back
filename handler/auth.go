@@ -243,7 +243,7 @@ type ResetPasswordRequest struct {
 // @Param request body ForgotPasswordRequest true "User email"
 // @Success 200 {object} map[string]interface{} "Reset code sent successfully"
 // @Failure 400 {object} ErrorResponse "Dados inválidos: email é obrigatório e deve ser válido"
-// @Failure 404 {object} ErrorResponse "Usuário não encontrado com este email"
+// @Failure 404 {object} ErrorResponse "Usuário não encontrado"
 // @Failure 500 {object} ErrorResponse "Erro ao gerar código de recuperação | Erro ao enviar email"
 // @Router /auth/forgot-password [post]
 func ForgotPasswordHandler(ctx *gin.Context) {
@@ -258,10 +258,8 @@ func ForgotPasswordHandler(ctx *gin.Context) {
 	// Busca usuário por email
 	var user schemas.User
 	if err := db.Where("email = ?", request.Email).First(&user).Error; err != nil {
-		// Por segurança, não revela se o email existe ou não
-		ctx.JSON(http.StatusOK, gin.H{
-			"message": "Se o email estiver cadastrado, você receberá um código de recuperação",
-		})
+		// Retorna erro 404 se usuário não encontrado
+		sendError(ctx, http.StatusNotFound, "Usuário não encontrado")
 		return
 	}
 

@@ -76,82 +76,135 @@ func (e *EmailService) SendPasswordResetEmail(toEmail, userName, resetCode strin
 <html>
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             line-height: 1.6;
-            color: #333;
+            color: #2d3748;
             max-width: 600px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 0;
+            background-color: #f7fafc;
+        }
+        .container {
+            background-color: #ffffff;
+            margin: 20px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         .header {
-            background-color: #4CAF50;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 20px;
+            padding: 40px 30px;
             text-align: center;
-            border-radius: 5px 5px 0 0;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
         }
         .content {
-            background-color: #f9f9f9;
-            padding: 30px;
-            border: 1px solid #ddd;
+            padding: 40px 30px;
+            background-color: #ffffff;
+        }
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #1a202c;
         }
         .code-box {
-            background-color: #fff;
-            border: 2px dashed #4CAF50;
-            padding: 20px;
+            background: linear-gradient(135deg, #f6f8fb 0%, #edf2f7 100%);
+            border: 2px solid #667eea;
+            padding: 30px;
             text-align: center;
-            margin: 20px 0;
-            border-radius: 5px;
+            margin: 30px 0;
+            border-radius: 10px;
+        }
+        .code-label {
+            font-size: 14px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
         }
         .code {
-            font-size: 32px;
-            font-weight: bold;
-            color: #4CAF50;
-            letter-spacing: 5px;
+            font-size: 42px;
+            font-weight: 700;
+            color: #667eea;
+            letter-spacing: 8px;
+            font-family: 'Courier New', monospace;
+        }
+        .info-box {
+            background-color: #fef5e7;
+            border-left: 4px solid #f39c12;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-box p {
+            margin: 0;
+            color: #856404;
+            font-size: 14px;
+        }
+        .warning-box {
+            background-color: #fee;
+            border-left: 4px solid #e53e3e;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .warning-box p {
+            margin: 0;
+            color: #742a2a;
+            font-weight: 600;
+            font-size: 14px;
         }
         .footer {
-            background-color: #f1f1f1;
-            padding: 15px;
+            background-color: #edf2f7;
+            padding: 25px 30px;
             text-align: center;
-            font-size: 12px;
-            color: #666;
-            border-radius: 0 0 5px 5px;
+            font-size: 13px;
+            color: #718096;
         }
-        .warning {
-            color: #ff6b6b;
-            font-weight: bold;
-            margin-top: 15px;
+        .footer p {
+            margin: 5px 0;
+        }
+        strong {
+            color: #667eea;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🔐 Recuperação de Senha</h1>
-    </div>
-    <div class="content">
-        <p>Olá, <strong>{{.UserName}}</strong>!</p>
-        
-        <p>Recebemos uma solicitação para redefinir a senha da sua conta.</p>
-        
-        <p>Use o código abaixo para recuperar sua senha:</p>
-        
-        <div class="code-box">
-            <div class="code">{{.ResetCode}}</div>
+    <div class="container">
+        <div class="header">
+            <h1>Recuperação de Senha</h1>
         </div>
-        
-        <p><strong>⏰ Este código expira em 15 minutos.</strong></p>
-        
-        <p>Se você não solicitou a recuperação de senha, ignore este email. Sua senha permanecerá inalterada.</p>
-        
-        <div class="warning">
-            ⚠️ Nunca compartilhe este código com ninguém!
+        <div class="content">
+            <p class="greeting">Olá, <strong>{{.UserName}}</strong>!</p>
+            
+            <p>Recebemos uma solicitação para redefinir a senha da sua conta no Sistema de Notas Fiscais.</p>
+            
+            <div class="code-box">
+                <div class="code-label">Seu Código de Verificação</div>
+                <div class="code">{{.ResetCode}}</div>
+            </div>
+            
+            <div class="info-box">
+                <p><strong>Atenção:</strong> Este código expira em 15 minutos e só pode ser usado uma vez.</p>
+            </div>
+            
+            <p style="margin-top: 25px;">Se você não solicitou a recuperação de senha, pode ignorar este email com segurança. Sua senha permanecerá inalterada.</p>
+            
+            <div class="warning-box">
+                <p>IMPORTANTE: Nunca compartilhe este código com ninguém, nem mesmo com nossa equipe de suporte.</p>
+            </div>
         </div>
-    </div>
-    <div class="footer">
-        <p>Este é um email automático, por favor não responda.</p>
-        <p>© 2024 Sistema de Notas Fiscais. Todos os direitos reservados.</p>
+        <div class="footer">
+            <p>Este é um email automático, por favor não responda.</p>
+            <p>&copy; 2025 Sistema de Notas Fiscais. Todos os direitos reservados.</p>
+        </div>
     </div>
 </body>
 </html>
@@ -184,69 +237,139 @@ func (e *EmailService) SendPasswordChangedEmail(toEmail, userName string) error 
 <html>
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             line-height: 1.6;
-            color: #333;
+            color: #2d3748;
             max-width: 600px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 0;
+            background-color: #f7fafc;
+        }
+        .container {
+            background-color: #ffffff;
+            margin: 20px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         .header {
-            background-color: #4CAF50;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 20px;
+            padding: 40px 30px;
             text-align: center;
-            border-radius: 5px 5px 0 0;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
         }
         .content {
-            background-color: #f9f9f9;
-            padding: 30px;
-            border: 1px solid #ddd;
+            padding: 40px 30px;
+            background-color: #ffffff;
+        }
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #1a202c;
         }
         .success-icon {
-            font-size: 60px;
+            width: 80px;
+            height: 80px;
+            margin: 20px auto;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .success-icon svg {
+            width: 50px;
+            height: 50px;
+            fill: white;
+        }
+        .success-box {
+            background: linear-gradient(135deg, #f6f8fb 0%, #edf2f7 100%);
+            border: 2px solid #667eea;
+            padding: 25px;
             text-align: center;
+            margin: 25px 0;
+            border-radius: 10px;
+        }
+        .success-box h2 {
+            color: #667eea;
+            margin: 0 0 10px 0;
+            font-size: 24px;
+        }
+        .success-box p {
+            color: #4a5568;
+            margin: 0;
+            font-size: 16px;
+        }
+        .info-box {
+            background-color: #fff5f5;
+            border-left: 4px solid #e53e3e;
+            padding: 15px 20px;
             margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-box p {
+            margin: 0;
+            color: #742a2a;
+            font-size: 14px;
+        }
+        .info-box strong {
+            color: #e53e3e;
         }
         .footer {
-            background-color: #f1f1f1;
-            padding: 15px;
+            background-color: #edf2f7;
+            padding: 25px 30px;
             text-align: center;
-            font-size: 12px;
-            color: #666;
-            border-radius: 0 0 5px 5px;
+            font-size: 13px;
+            color: #718096;
         }
-        .warning {
-            background-color: #fff3cd;
-            border-left: 4px solid #ffc107;
-            padding: 15px;
-            margin-top: 20px;
+        .footer p {
+            margin: 5px 0;
+        }
+        strong {
+            color: #667eea;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>✅ Senha Alterada</h1>
-    </div>
-    <div class="content">
-        <div class="success-icon">🎉</div>
-        
-        <p>Olá, <strong>{{.UserName}}</strong>!</p>
-        
-        <p>Sua senha foi alterada com sucesso!</p>
-        
-        <p>Agora você já pode fazer login com sua nova senha.</p>
-        
-        <div class="warning">
-            <strong>⚠️ Você não fez essa alteração?</strong><br>
-            Se você não solicitou essa mudança, entre em contato imediatamente com nosso suporte.
+    <div class="container">
+        <div class="header">
+            <h1>Senha Alterada com Sucesso</h1>
         </div>
-    </div>
-    <div class="footer">
-        <p>Este é um email automático, por favor não responda.</p>
-        <p>© 2024 Sistema de Notas Fiscais. Todos os direitos reservados.</p>
+        <div class="content">
+            <div class="success-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                </svg>
+            </div>
+            
+            <p class="greeting">Olá, <strong>{{.UserName}}</strong>!</p>
+            
+            <div class="success-box">
+                <h2>Tudo pronto!</h2>
+                <p>Sua senha foi alterada com sucesso.</p>
+            </div>
+            
+            <p style="margin: 20px 0;">A partir de agora, você deve usar sua nova senha para acessar o Sistema de Notas Fiscais.</p>
+            
+            <p>Por segurança, todas as sessões anteriores foram encerradas. Se você estava conectado em outros dispositivos, será necessário fazer login novamente.</p>
+            
+            <div class="info-box">
+                <p><strong>Você não reconhece esta alteração?</strong></p>
+                <p>Se você não solicitou essa mudança, sua conta pode estar comprometida. Entre em contato imediatamente com nosso suporte para recuperar o acesso.</p>
+            </div>
+        </div>
+        <div class="footer">
+            <p>Este é um email automático, por favor não responda.</p>
+            <p>&copy; 2025 Sistema de Notas Fiscais. Todos os direitos reservados.</p>
+        </div>
     </div>
 </body>
 </html>
@@ -277,71 +400,118 @@ func (e *EmailService) SendEmailVerificationCode(toEmail, userName, verification
 <html>
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             line-height: 1.6;
-            color: #333;
+            color: #2d3748;
             max-width: 600px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 0;
+            background-color: #f7fafc;
+        }
+        .container {
+            background-color: #ffffff;
+            margin: 20px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         .header {
-            background-color: #2196F3;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 20px;
+            padding: 40px 30px;
             text-align: center;
-            border-radius: 5px 5px 0 0;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
         }
         .content {
-            background-color: #f9f9f9;
-            padding: 30px;
-            border: 1px solid #ddd;
+            padding: 40px 30px;
+            background-color: #ffffff;
+        }
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #1a202c;
         }
         .code-box {
-            background-color: #fff;
-            border: 2px dashed #2196F3;
-            padding: 20px;
+            background: linear-gradient(135deg, #f6f8fb 0%, #edf2f7 100%);
+            border: 2px solid #667eea;
+            padding: 30px;
             text-align: center;
-            margin: 20px 0;
-            border-radius: 5px;
+            margin: 30px 0;
+            border-radius: 10px;
+        }
+        .code-label {
+            font-size: 14px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
         }
         .code {
-            font-size: 32px;
-            font-weight: bold;
-            color: #2196F3;
-            letter-spacing: 5px;
+            font-size: 42px;
+            font-weight: 700;
+            color: #667eea;
+            letter-spacing: 8px;
+            font-family: 'Courier New', monospace;
+        }
+        .info-box {
+            background-color: #fef5e7;
+            border-left: 4px solid #f39c12;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-box p {
+            margin: 0;
+            color: #856404;
+            font-size: 14px;
         }
         .footer {
-            background-color: #f1f1f1;
-            padding: 15px;
+            background-color: #edf2f7;
+            padding: 25px 30px;
             text-align: center;
-            font-size: 12px;
-            color: #666;
-            border-radius: 0 0 5px 5px;
+            font-size: 13px;
+            color: #718096;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+        strong {
+            color: #667eea;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>📧 Verificação de Email</h1>
-    </div>
-    <div class="content">
-        <p>Olá, <strong>{{.UserName}}</strong>!</p>
-        
-        <p>Use o código abaixo para verificar seu email:</p>
-        
-        <div class="code-box">
-            <div class="code">{{.VerificationCode}}</div>
+    <div class="container">
+        <div class="header">
+            <h1>Verificação de Email</h1>
         </div>
-        
-        <p><strong>⏰ Este código expira em 15 minutos.</strong></p>
-        
-        <p>Se você não solicitou esta verificação, ignore este email.</p>
-    </div>
-    <div class="footer">
-        <p>Este é um email automático, por favor não responda.</p>
-        <p>© 2024 Sistema de Notas Fiscais. Todos os direitos reservados.</p>
+        <div class="content">
+            <p class="greeting">Olá, <strong>{{.UserName}}</strong>!</p>
+            
+            <p>Para confirmar a alteração do seu endereço de email no Sistema de Notas Fiscais, utilize o código de verificação abaixo:</p>
+            
+            <div class="code-box">
+                <div class="code-label">Código de Verificação</div>
+                <div class="code">{{.VerificationCode}}</div>
+            </div>
+            
+            <div class="info-box">
+                <p><strong>Atenção:</strong> Este código expira em 15 minutos.</p>
+            </div>
+            
+            <p style="margin-top: 25px;">Se você não solicitou esta verificação, pode ignorar este email com segurança.</p>
+        </div>
+        <div class="footer">
+            <p>Este é um email automático, por favor não responda.</p>
+            <p>&copy; 2025 Sistema de Notas Fiscais. Todos os direitos reservados.</p>
+        </div>
     </div>
 </body>
 </html>
