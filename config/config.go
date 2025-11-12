@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"os"
+	"strconv"
 
 	"gorm.io/gorm"
 )
@@ -28,6 +30,12 @@ func Init() error {
 		return fmt.Errorf("erro initializing postgresql %v: ", err)
 	}
 
+	// Inicializar AI Worker Pool
+	maxWorkers := getEnvAsInt("MAX_AI_WORKERS", 3)       // 3 workers para Gemini 2.5 Flash Free (10 RPM)
+	queueSize := getEnvAsInt("AI_QUEUE_SIZE", 50)         // Fila de 50 jobs
+
+	InitAIWorkerPool(maxWorkers, queueSize)
+
 	return nil
 }
 
@@ -46,4 +54,17 @@ func GetLogger(p string) *Logger {
 
 	logger = NewLogger(p)
 	return logger
+}
+
+// getEnvAsInt busca variável de ambiente como int com valor padrão
+func getEnvAsInt(key string, defaultValue int) int {
+	valueStr := os.Getenv(key)
+	if valueStr == "" {
+		return defaultValue
+	}
+	value, err := strconv.Atoi(valueStr)
+	if err != nil {
+		return defaultValue
+	}
+	return value
 }

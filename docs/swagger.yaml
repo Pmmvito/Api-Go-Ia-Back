@@ -638,6 +638,33 @@ paths:
       summary: Obter resumo de uso de tokens
       tags:
       - ai-usage
+  /ai-worker-pool/status:
+    get:
+      consumes:
+      - application/json
+      description: Get current status and statistics of the AI Worker Pool (queue
+        size, processing, etc)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Worker Pool status
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "503":
+          description: Worker Pool not initialized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get AI Worker Pool status
+      tags:
+      - "\U0001F916 AI"
   /auth/change-password:
     post:
       consumes:

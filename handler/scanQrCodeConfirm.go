@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/Pmmvito/Golang-Api-Exemple/config"
 	"github.com/Pmmvito/Golang-Api-Exemple/schemas"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -92,9 +94,9 @@ func ScanQRCodeConfirmHandler(ctx *gin.Context) {
 	logger.InfoF("✅ Active items after filtering: %d (deleted: %d)",
 		len(activeItems), len(request.Items)-len(activeItems))
 
-	// 🤖 ETAPA 1: Categorização com IA (em lote)
+	// 🤖 ETAPA 1: Categorização com IA usando Worker Pool
 	startAI := time.Now()
-	logger.InfoF("🤖 Starting AI categorization for %d items...", len(activeItems))
+	logger.InfoF("🤖 Submitting AI categorization job for %d items...", len(activeItems))
 
 	// Converte para formato NFCeItem para usar a função existente
 	nfceItems := make([]NFCeItem, len(activeItems))
@@ -109,11 +111,81 @@ func ScanQRCodeConfirmHandler(ctx *gin.Context) {
 		}
 	}
 
-	// Usa a função de categorização existente (passando userID)
-	categorizationResult, err := categorizeItemsWithAI(nfceItems, userID.(uint))
-	if err != nil {
-		logger.ErrorF("❌ AI categorization failed: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, fmt.Sprintf("AI categorization error: %v", err.Error()))
+	// Verificar se Worker Pool está disponível
+	workerPool := config.GetAIWorkerPool()
+	if workerPool == nil {
+		logger.ErrorF("❌ Worker Pool not initialized")
+		sendError(ctx, http.StatusInternalServerError, "Sistema de IA não está disponível no momento")
+		return
+	}
+
+	// Verificar se fila está cheia
+	if workerPool.IsQueueFull() {
+		queueStats := workerPool.GetStats()
+		logger.ErrorF("❌ Worker Pool queue is full: %d/%d", queueStats.CurrentInQueue, workerPool.GetQueueCapacity())
+		sendError(ctx, http.StatusServiceUnavailable, fmt.Sprintf(
+			"Sistema de IA está processando muitas requisições (%d na fila). Por favor, aguarde alguns minutos e tente novamente.",
+			queueStats.CurrentInQueue,
+		))
+		return
+	}
+
+	// Canal para receber resultado do Worker Pool
+	resultChan := make(chan struct {
+		result *CategorizationResult
+		err    error
+	}, 1)
+
+	// Criar contexto com timeout
+	jobCtx, cancel := context.WithTimeout(ctx.Request.Context(), 60*time.Second)
+	defer cancel()
+
+	// Submeter job ao Worker Pool
+	job := config.AIJob{
+		ID:      fmt.Sprintf("scan-%d-%d", userID.(uint), time.Now().Unix()),
+		UserID:  userID.(uint),
+		Items:   nfceItems,
+		Context: jobCtx,
+		Callback: func(items interface{}, err error) {
+			if err != nil {
+				resultChan <- struct {
+					result *CategorizationResult
+					err    error
+				}{nil, err}
+				return
+			}
+
+			// Processar categorização com IA
+			result, aiErr := categorizeItemsWithAI(items.([]NFCeItem), userID.(uint))
+			resultChan <- struct {
+				result *CategorizationResult
+				err    error
+			}{result, aiErr}
+		},
+	}
+
+	if err := workerPool.SubmitJob(job); err != nil {
+		logger.ErrorF("❌ Failed to submit job to Worker Pool: %v", err)
+		sendError(ctx, http.StatusServiceUnavailable, fmt.Sprintf("Não foi possível processar sua requisição: %v", err))
+		return
+	}
+
+	queueSize := workerPool.GetQueueSize()
+	logger.InfoF("📥 Job submitted to Worker Pool (queue: %d/%d)", queueSize, workerPool.GetQueueCapacity())
+
+	// Aguardar resultado do Worker Pool
+	var categorizationResult *CategorizationResult
+	select {
+	case result := <-resultChan:
+		if result.err != nil {
+			logger.ErrorF("❌ AI categorization failed: %v", result.err.Error())
+			sendError(ctx, http.StatusInternalServerError, fmt.Sprintf("AI categorization error: %v", result.err.Error()))
+			return
+		}
+		categorizationResult = result.result
+	case <-jobCtx.Done():
+		logger.ErrorF("❌ AI categorization timeout")
+		sendError(ctx, http.StatusRequestTimeout, "Processamento da IA demorou muito. Por favor, tente novamente.")
 		return
 	}
 

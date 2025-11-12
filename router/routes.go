@@ -45,6 +45,9 @@ func InitializeRoutes(router *gin.Engine) {
 		// Rotas de uso de tokens da IA (apenas consulta - registro é automático)
 		protected.GET("/ai-usage", handler.GetAITokenUsageHandler)
 		protected.GET("/ai-usage/summary", handler.GetAITokenUsageSummaryHandler)
+		
+		// 🤖 Status do AI Worker Pool
+		protected.GET("/ai-worker-pool/status", handler.GetAIWorkerPoolStatusHandler)
 
 		// Rotas de categorias
 		protected.POST("/category", handler.CreateCategoryHandler)
