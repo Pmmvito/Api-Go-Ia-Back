@@ -55,7 +55,7 @@ func GenerateJWT(userID uint) (string, error) {
 // @Produce json
 // @Param request body RegisterRequest true "User registration data (name, email, password)"
 // @Success 201 {object} AuthResponse "User created successfully with JWT token"
-// @Failure 400 {object} ErrorResponse "Dados de registro inválidos: verifique se nome (mínimo 2 caracteres), email válido e senha (mínimo 6 caracteres) foram fornecidos corretamente | Este email já está cadastrado. Por favor, utilize outro email ou faça login | Este email foi utilizado em uma conta deletada e não pode ser reutilizado por questões de segurança"
+// @Failure 400 {object} ErrorResponse "Dados de registro inválidos: verifique se nome (mínimo 2 caracteres), email válido e senha (mínimo 6 caracteres) foram fornecidos corretamente | Email inválido: formato incorreto | Email descartável não é permitido. Por favor, utilize um email pessoal válido | O domínio do email não existe ou não aceita mensagens. Verifique se digitou corretamente | Este email já está cadastrado. Por favor, utilize outro email ou faça login | Este email foi utilizado em uma conta deletada e não pode ser reutilizado por questões de segurança"
 // @Failure 500 {object} ErrorResponse "Erro ao processar a senha durante o cadastro. Por favor, tente novamente | Erro ao criar usuário no banco de dados. Por favor, tente novamente mais tarde | Usuário criado com sucesso, mas houve erro ao gerar o token de autenticação. Por favor, faça login"
 // @Router /register [post]
 func RegisterHandler(ctx *gin.Context) {
@@ -64,6 +64,15 @@ func RegisterHandler(ctx *gin.Context) {
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		logger.ErrorF("validation error: %v", err.Error())
 		sendError(ctx, http.StatusBadRequest, "Dados de registro inválidos: verifique se nome (mínimo 2 caracteres), email válido e senha (mínimo 6 caracteres) foram fornecidos corretamente")
+		return
+	}
+
+	// Validar email com verificação MX
+	emailValidator := config.NewEmailValidator()
+	valid, errorMsg := emailValidator.ValidateEmail(request.Email)
+	if !valid {
+		logger.WarnF("Email validation failed for %s: %s", request.Email, errorMsg)
+		sendError(ctx, http.StatusBadRequest, errorMsg)
 		return
 	}
 
