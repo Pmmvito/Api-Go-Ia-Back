@@ -10,12 +10,12 @@ import (
 
 // EmailService gerencia o envio de emails
 type EmailService struct {
-	SMTPHost     string
-	SMTPPort     string
-	SenderEmail  string
-	SenderName   string
-	Password     string
-	auth         smtp.Auth
+	SMTPHost    string
+	SMTPPort    string
+	SenderEmail string
+	SenderName  string
+	Password    string
+	auth        smtp.Auth
 }
 
 // NewEmailService cria uma nova instância do serviço de email
@@ -51,7 +51,7 @@ func NewEmailService() *EmailService {
 // SendPasswordResetEmail envia email com código de recuperação
 func (e *EmailService) SendPasswordResetEmail(toEmail, userName, resetCode string) error {
 	subject := "Recuperação de Senha - Código de Verificação"
-	
+
 	// Template HTML do email
 	htmlTemplate := `
 <!DOCTYPE html>
@@ -160,7 +160,7 @@ func (e *EmailService) SendPasswordResetEmail(toEmail, userName, resetCode strin
 // SendPasswordChangedEmail notifica o usuário sobre mudança de senha
 func (e *EmailService) SendPasswordChangedEmail(toEmail, userName string) error {
 	subject := "Senha Alterada com Sucesso"
-	
+
 	htmlTemplate := `
 <!DOCTYPE html>
 <html>
@@ -253,7 +253,7 @@ func (e *EmailService) SendPasswordChangedEmail(toEmail, userName string) error 
 // SendEmailVerificationCode envia código para verificação de email
 func (e *EmailService) SendEmailVerificationCode(toEmail, userName, verificationCode string) error {
 	subject := "Verificação de Email - Código de Confirmação"
-	
+
 	htmlTemplate := `
 <!DOCTYPE html>
 <html>
