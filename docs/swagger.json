@@ -89,6 +89,64 @@
                 }
             }
         },
+        "/auth/change-password": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Change password for authenticated user. Requires current password for security. User will remain logged in after password change.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "🔐 Authentication"
+                ],
+                "summary": "Change password (authenticated)",
+                "parameters": [
+                    {
+                        "description": "Current and new password",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.ChangePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Password changed successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Dados inválidos: senha atual e nova senha (mínimo 6 caracteres) são obrigatórios | Nova senha deve ser diferente da senha atual",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Senha atual incorreta. Verifique e tente novamente | Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao processar nova senha | Erro ao atualizar senha",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/forgot-password": {
             "post": {
                 "description": "Send a 6-digit code to user's email for password recovery. Code expires in 15 minutes.",
@@ -2332,6 +2390,25 @@
                 },
                 "user": {
                     "$ref": "#/definitions/schemas.UserResponse"
+                }
+            }
+        },
+        "handler.ChangePasswordRequest": {
+            "type": "object",
+            "required": [
+                "currentPassword",
+                "newPassword"
+            ],
+            "properties": {
+                "currentPassword": {
+                    "type": "string",
+                    "minLength": 6,
+                    "example": "senhaAtual123"
+                },
+                "newPassword": {
+                    "type": "string",
+                    "minLength": 6,
+                    "example": "novaSenha123"
                 }
             }
         },

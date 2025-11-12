@@ -397,3 +397,77 @@ func ResetPasswordHandler(ctx *gin.Context) {
 		"message": "Senha alterada com sucesso! Faça login com sua nova senha.",
 	})
 }
+
+// ChangePasswordRequest define a estrutura para trocar senha quando logado
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword" binding:"required,min=6" example:"senhaAtual123"`
+	NewPassword     string `json:"newPassword" binding:"required,min=6" example:"novaSenha123"`
+}
+
+// @Summary Change password (authenticated)
+// @Description Change password for authenticated user. Requires current password for security. User will remain logged in after password change.
+// @Tags 🔐 Authentication
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body ChangePasswordRequest true "Current and new password"
+// @Success 200 {object} map[string]interface{} "Password changed successfully"
+// @Failure 400 {object} ErrorResponse "Dados inválidos: senha atual e nova senha (mínimo 6 caracteres) são obrigatórios | Nova senha deve ser diferente da senha atual"
+// @Failure 401 {object} ErrorResponse "Senha atual incorreta. Verifique e tente novamente | Unauthorized"
+// @Failure 500 {object} ErrorResponse "Erro ao processar nova senha | Erro ao atualizar senha"
+// @Router /auth/change-password [post]
+func ChangePasswordHandler(ctx *gin.Context) {
+	var request ChangePasswordRequest
+
+	if err := ctx.ShouldBindJSON(&request); err != nil {
+		logger.ErrorF("validation error: %v", err.Error())
+		sendError(ctx, http.StatusBadRequest, "Dados inválidos: senha atual e nova senha (mínimo 6 caracteres) são obrigatórios")
+		return
+	}
+
+	// Pega usuário do contexto
+	userInterface, exists := ctx.Get("user")
+	if !exists {
+		sendError(ctx, http.StatusUnauthorized, "Usuário não encontrado no contexto de autenticação")
+		return
+	}
+	user := userInterface.(schemas.User)
+
+	// Verifica se a senha atual está correta
+	if !user.CheckPassword(request.CurrentPassword) {
+		sendError(ctx, http.StatusUnauthorized, "Senha atual incorreta. Verifique e tente novamente")
+		return
+	}
+
+	// Verifica se a nova senha é diferente da atual
+	if request.CurrentPassword == request.NewPassword {
+		sendError(ctx, http.StatusBadRequest, "Nova senha deve ser diferente da senha atual")
+		return
+	}
+
+	// Atualiza para nova senha
+	if err := user.HashPassword(request.NewPassword); err != nil {
+		logger.ErrorF("error hashing password: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Erro ao processar nova senha. Por favor, tente novamente")
+		return
+	}
+
+	if err := db.Save(&user).Error; err != nil {
+		logger.ErrorF("error updating password: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Erro ao atualizar senha. Por favor, tente novamente")
+		return
+	}
+
+	// Envia email de notificação
+	emailService := config.NewEmailService()
+	if emailService.IsConfigured() {
+		if err := emailService.SendPasswordChangedEmail(user.Email, user.Name); err != nil {
+			logger.ErrorF("error sending confirmation email: %v", err.Error())
+			// Não falha a operação, apenas loga
+		}
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Senha alterada com sucesso! Você permanece logado.",
+	})
+}
