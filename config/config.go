@@ -31,8 +31,8 @@ func Init() error {
 	}
 
 	// Inicializar AI Worker Pool
-	maxWorkers := getEnvAsInt("MAX_AI_WORKERS", 3)       // 3 workers para Gemini 2.5 Flash Free (10 RPM)
-	queueSize := getEnvAsInt("AI_QUEUE_SIZE", 50)         // Fila de 50 jobs
+	maxWorkers := getEnvAsInt("MAX_AI_WORKERS", 3) // 3 workers para Gemini 2.5 Flash Free (10 RPM)
+	queueSize := getEnvAsInt("AI_QUEUE_SIZE", 50)  // Fila de 50 jobs
 
 	InitAIWorkerPool(maxWorkers, queueSize)
 

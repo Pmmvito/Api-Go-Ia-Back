@@ -22,14 +22,14 @@ type AIJob struct {
 // - Limite: ~10 RPM (requests por minuto)
 // - Recomendado: 3 workers simultâneos para segurança
 type AIWorkerPool struct {
-	maxWorkers    int
-	queue         chan AIJob
-	semaphore     chan struct{}
-	wg            sync.WaitGroup
-	stats         AIStats
-	mu            sync.RWMutex
-	rateLimiter   *time.Ticker
-	shutdownChan  chan struct{}
+	maxWorkers     int
+	queue          chan AIJob
+	semaphore      chan struct{}
+	wg             sync.WaitGroup
+	stats          AIStats
+	mu             sync.RWMutex
+	rateLimiter    *time.Ticker
+	shutdownChan   chan struct{}
 	isShuttingDown bool
 }
 
