@@ -1,11 +1,12 @@
 package config
 
 import (
-	"bytes"
-	"fmt"
-	"html/template"
-	"net/smtp"
-	"os"
+    "bytes"
+    "crypto/tls"
+    "fmt"
+    "html/template"
+    "net/smtp"
+    "os"
 )
 
 // EmailService gerencia o envio de emails
@@ -365,38 +366,152 @@ func (e *EmailService) SendEmailVerificationCode(toEmail, userName, verification
 
 // sendEmail é o método privado que realmente envia o email
 func (e *EmailService) sendEmail(to, subject, htmlBody string) error {
-	// Log início
-	logger.InfoF("📧 Tentando enviar email para: %s", to)
-	logger.InfoF("📧 SMTP Host: %s:%s", e.SMTPHost, e.SMTPPort)
-	logger.InfoF("📧 Sender: %s", e.SenderEmail)
+    logger.InfoF("📧 Tentando enviar email para: %s", to)
+    logger.InfoF("📧 SMTP Host: %s:%s", e.SMTPHost, e.SMTPPort)
+    logger.InfoF("📧 Sender: %s", e.SenderEmail)
 
-	if e.SenderEmail == "" || e.Password == "" {
-		logger.ErrorF("❌ Configurações de email não definidas! SMTP_EMAIL: '%s', SMTP_PASSWORD: %t",
-			e.SenderEmail, e.Password != "")
-		return fmt.Errorf("configurações de email não definidas. Configure SMTP_EMAIL e SMTP_PASSWORD")
+    if e.SenderEmail == "" || e.Password == "" {
+        logger.ErrorF("❌ Configurações de email não definidas! SMTP_EMAIL: '%s', SMTP_PASSWORD configurado: %t",
+            e.SenderEmail, e.Password != "")
+        return fmt.Errorf("configurações de email não definidas. Configure SMTP_EMAIL e SMTP_PASSWORD")
+    }
+
+    // Monta o email no formato MIME
+    header := fmt.Sprintf("From: %s <%s>\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=\"UTF-8\"\r\n\r\n",
+        e.SenderName, e.SenderEmail, to, subject)
+    message := []byte(header + htmlBody)
+
+    addr := e.SMTPHost + ":" + e.SMTPPort
+
+    // Se porta for 587 usamos STARTTLS
+    if e.SMTPPort == "587" {
+        logger.InfoF("📧 Usando STARTTLS (porta 587)")
+        c, err := smtp.Dial(addr)
+        if err != nil {
+            logger.ErrorF("❌ Erro ao conectar ao servidor SMTP: %v", err)
+            return fmt.Errorf("erro ao conectar ao servidor SMTP: %v", err)
+        }
+        defer c.Close()
+
+        host := e.SMTPHost
+        if ok, _ := c.Extension("STARTTLS"); ok {
+            tlsconfig := &tls.Config{
+                ServerName: host,
+            }
+            if err := c.StartTLS(tlsconfig); err != nil {
+                logger.ErrorF("❌ Erro ao iniciar STARTTLS: %v", err)
+                return fmt.Errorf("erro ao iniciar STARTTLS: %v", err)
+            }
+		} else {
+			logger.WarnF("⚠️ Servidor SMTP não suporta STARTTLS")
+		}
+
+		auth := smtp.PlainAuth("", e.SenderEmail, e.Password, e.SMTPHost)
+        if err := c.Auth(auth); err != nil {
+            logger.ErrorF("❌ Erro na autenticação SMTP: %v", err)
+            return fmt.Errorf("erro na autenticação SMTP: %v", err)
+        }
+
+        if err := c.Mail(e.SenderEmail); err != nil {
+            logger.ErrorF("❌ erro Mail: %v", err)
+            return err
+        }
+        if err := c.Rcpt(to); err != nil {
+            logger.ErrorF("❌ erro Rcpt: %v", err)
+            return err
+        }
+
+        w, err := c.Data()
+        if err != nil {
+            logger.ErrorF("❌ erro Data: %v", err)
+            return err
+        }
+        _, err = w.Write(message)
+        if err != nil {
+            logger.ErrorF("❌ erro escrevendo mensagem: %v", err)
+            return err
+        }
+        err = w.Close()
+        if err != nil {
+            logger.ErrorF("❌ erro fechando writer: %v", err)
+            return err
+        }
+
+
+		if err := c.Quit(); err != nil {
+			logger.WarnF("⚠️ erro no Quit SMTP: %v", err)
+		}
+
+		logger.InfoF("✅ Email enviado com sucesso (STARTTLS) para: %s", to)
+        return nil
+    }
+
+    // Caso geral: tentar conexão TLS direta (porta 465) ou fallback
+    logger.InfoF("📧 Tentando conexão TLS direta para: %s", addr)
+    tlsconfig := &tls.Config{
+        InsecureSkipVerify: false,
+        ServerName:         e.SMTPHost,
+    }
+    conn, err := tls.Dial("tcp", addr, tlsconfig)
+    if err != nil {
+        logger.ErrorF("❌ Erro ao conectar TLS: %v", err)
+        // Fallback para smtp.SendMail como última tentativa
+        logger.InfoF("📧 Tentando fallback smtp.SendMail para: %s", addr)
+        err2 := smtp.SendMail(addr, smtp.PlainAuth("", e.SenderEmail, e.Password, e.SMTPHost), e.SenderEmail, []string{to}, message)
+        if err2 != nil {
+            logger.ErrorF("❌ Fallback smtp.SendMail também falhou: %v", err2)
+            return fmt.Errorf("erro ao enviar email: %v (tls: %v, fallback: %v)", err2, err, err2)
+        }
+        logger.InfoF("✅ Email enviado com sucesso (fallback smtp.SendMail) para: %s", to)
+        return nil
+    }
+    defer conn.Close()
+
+    client, err := smtp.NewClient(conn, e.SMTPHost)
+    if err != nil {
+        logger.ErrorF("❌ Erro criando cliente SMTP: %v", err)
+        return fmt.Errorf("erro criando cliente SMTP: %v", err)
+    }
+    defer client.Close()
+
+    auth := smtp.PlainAuth("", e.SenderEmail, e.Password, e.SMTPHost)
+    if err := client.Auth(auth); err != nil {
+        logger.ErrorF("❌ Erro na autenticação SMTP (TLS): %v", err)
+        return fmt.Errorf("erro na autenticação SMTP (TLS): %v", err)
+    }
+
+    if err := client.Mail(e.SenderEmail); err != nil {
+        logger.ErrorF("❌ erro Mail (TLS): %v", err)
+        return err
+    }
+    if err := client.Rcpt(to); err != nil {
+        logger.ErrorF("❌ erro Rcpt (TLS): %v", err)
+        return err
+    }
+
+    w, err := client.Data()
+    if err != nil {
+        logger.ErrorF("❌ erro Data (TLS): %v", err)
+        return err
+    }
+    _, err = w.Write(message)
+    if err != nil {
+        logger.ErrorF("❌ erro escrevendo mensagem (TLS): %v", err)
+        return err
+    }
+    err = w.Close()
+    if err != nil {
+        logger.ErrorF("❌ erro fechando writer (TLS): %v", err)
+        return err
+    }
+
+
+	if err := client.Quit(); err != nil {
+		logger.WarnF("⚠️ erro no Quit SMTP (TLS): %v", err)
 	}
 
-	// Monta o email no formato MIME
-	message := []byte("From: " + e.SenderName + " <" + e.SenderEmail + ">\r\n" +
-		"To: " + to + "\r\n" +
-		"Subject: " + subject + "\r\n" +
-		"MIME-Version: 1.0\r\n" +
-		"Content-Type: text/html; charset=UTF-8\r\n" +
-		"\r\n" +
-		htmlBody)
-
-	// Envia o email
-	addr := e.SMTPHost + ":" + e.SMTPPort
-	logger.InfoF("📧 Conectando em: %s", addr)
-
-	err := smtp.SendMail(addr, e.auth, e.SenderEmail, []string{to}, message)
-	if err != nil {
-		logger.ErrorF("❌ Erro ao enviar email: %v", err)
-		return fmt.Errorf("erro ao enviar email: %v", err)
-	}
-
-	logger.InfoF("✅ Email enviado com sucesso para: %s", to)
-	return nil
+	logger.InfoF("✅ Email enviado com sucesso (TLS) para: %s", to)
+    return nil
 }
 
 // IsConfigured verifica se o serviço de email está configurado

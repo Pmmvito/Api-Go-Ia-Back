@@ -664,7 +664,7 @@ paths:
       - BearerAuth: []
       summary: Get AI Worker Pool status
       tags:
-      - "\U0001F916 AI"
+      - AI
   /auth/change-password:
     post:
       consumes:

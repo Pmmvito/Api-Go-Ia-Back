@@ -110,7 +110,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "🤖 AI"
+                    "AI"
                 ],
                 "summary": "Get AI Worker Pool status",
                 "responses": {
