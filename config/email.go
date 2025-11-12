@@ -369,9 +369,9 @@ func (e *EmailService) sendEmail(to, subject, htmlBody string) error {
 	logger.InfoF("📧 Tentando enviar email para: %s", to)
 	logger.InfoF("📧 SMTP Host: %s:%s", e.SMTPHost, e.SMTPPort)
 	logger.InfoF("📧 Sender: %s", e.SenderEmail)
-	
+
 	if e.SenderEmail == "" || e.Password == "" {
-		logger.ErrorF("❌ Configurações de email não definidas! SMTP_EMAIL: '%s', SMTP_PASSWORD: %t", 
+		logger.ErrorF("❌ Configurações de email não definidas! SMTP_EMAIL: '%s', SMTP_PASSWORD: %t",
 			e.SenderEmail, e.Password != "")
 		return fmt.Errorf("configurações de email não definidas. Configure SMTP_EMAIL e SMTP_PASSWORD")
 	}
@@ -388,7 +388,7 @@ func (e *EmailService) sendEmail(to, subject, htmlBody string) error {
 	// Envia o email
 	addr := e.SMTPHost + ":" + e.SMTPPort
 	logger.InfoF("📧 Conectando em: %s", addr)
-	
+
 	err := smtp.SendMail(addr, e.auth, e.SenderEmail, []string{to}, message)
 	if err != nil {
 		logger.ErrorF("❌ Erro ao enviar email: %v", err)
