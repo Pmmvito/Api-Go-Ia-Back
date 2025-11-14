@@ -2,9 +2,16 @@ basePath: /api/v1
 definitions:
   handler.AuthResponse:
     properties:
+      accessToken:
+        description: Token de acesso curto (15 minutos)
+        type: string
+      expiresIn:
+        description: Segundos até expiração do access token
+        type: integer
       message:
         type: string
-      token:
+      refreshToken:
+        description: Token de refresh longo (7 dias)
         type: string
       user:
         $ref: '#/definitions/schemas.UserResponse'
@@ -237,6 +244,14 @@ definitions:
         items:
           $ref: '#/definitions/handler.ItemRecategorizationResult'
         type: array
+    type: object
+  handler.RefreshTokenRequest:
+    properties:
+      refreshToken:
+        example: a1b2c3d4e5f6...
+        type: string
+    required:
+    - refreshToken
     type: object
   handler.RegisterRequest:
     properties:
@@ -738,6 +753,42 @@ paths:
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
       summary: Request password reset
+      tags:
+      - "\U0001F510 Authentication"
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Use a valid refresh token to get a new access token. The refresh
+        token can only be used once (one-time use).
+      parameters:
+      - description: Refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: New access token generated successfully
+          schema:
+            $ref: '#/definitions/handler.AuthResponse'
+        "400":
+          description: Refresh token é obrigatório
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Refresh token inválido, expirado ou já utilizado. Por favor,
+            faça login novamente
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Erro ao gerar novo access token. Por favor, tente novamente
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Refresh access token
       tags:
       - "\U0001F510 Authentication"
   /auth/reset-password:
@@ -1980,9 +2031,12 @@ paths:
         "400":
           description: 'Dados de registro inválidos: verifique se nome (mínimo 2 caracteres),
             email válido e senha (mínimo 6 caracteres) foram fornecidos corretamente
-            | Este email já está cadastrado. Por favor, utilize outro email ou faça
-            login | Este email foi utilizado em uma conta deletada e não pode ser
-            reutilizado por questões de segurança'
+            | Email inválido: formato incorreto | Email descartável não é permitido.
+            Por favor, utilize um email pessoal válido | O domínio do email não existe
+            ou não aceita mensagens. Verifique se digitou corretamente | Este email
+            já está cadastrado. Por favor, utilize outro email ou faça login | Este
+            email foi utilizado em uma conta deletada e não pode ser reutilizado por
+            questões de segurança'
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "500":

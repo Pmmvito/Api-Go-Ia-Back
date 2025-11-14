@@ -14,6 +14,7 @@ type PasswordReset struct {
 	Token     string    `gorm:"not null;size:6;index"` // Código de 6 dígitos
 	ExpiresAt time.Time `gorm:"not null;index"`
 	Used      bool      `gorm:"default:false;not null"`
+	Attempts  int       `gorm:"default:0;not null"` // 🔒 Contador de tentativas incorretas
 	User      User      `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
 }
 

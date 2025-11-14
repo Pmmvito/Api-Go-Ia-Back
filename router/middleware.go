@@ -75,6 +75,16 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		// Extrai as claims
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			// 🔒 Verifica se é um access token (não aceita refresh tokens aqui)
+			if tokenType, ok := claims["type"].(string); ok && tokenType != "access" {
+				ctx.JSON(http.StatusUnauthorized, gin.H{
+					"message":   "Invalid token type. Use access token for API requests.",
+					"errorCode": http.StatusUnauthorized,
+				})
+				ctx.Abort()
+				return
+			}
+
 			// Adiciona o userID no contexto para uso nos handlers
 			if userID, ok := claims["user_id"].(float64); ok {
 				ctx.Set("user_id", uint(userID))

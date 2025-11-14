@@ -247,6 +247,58 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/refresh": {
+            "post": {
+                "description": "Use a valid refresh token to get a new access token. The refresh token can only be used once (one-time use).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "🔐 Authentication"
+                ],
+                "summary": "Refresh access token",
+                "parameters": [
+                    {
+                        "description": "Refresh token",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.RefreshTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "New access token generated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/handler.AuthResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Refresh token é obrigatório",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Refresh token inválido, expirado ou já utilizado. Por favor, faça login novamente",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Erro ao gerar novo access token. Por favor, tente novamente",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/auth/reset-password": {
             "post": {
                 "description": "Reset user password using the 6-digit code received by email",
@@ -2087,7 +2139,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Dados de registro inválidos: verifique se nome (mínimo 2 caracteres), email válido e senha (mínimo 6 caracteres) foram fornecidos corretamente | Este email já está cadastrado. Por favor, utilize outro email ou faça login | Este email foi utilizado em uma conta deletada e não pode ser reutilizado por questões de segurança",
+                        "description": "Dados de registro inválidos: verifique se nome (mínimo 2 caracteres), email válido e senha (mínimo 6 caracteres) foram fornecidos corretamente | Email inválido: formato incorreto | Email descartável não é permitido. Por favor, utilize um email pessoal válido | O domínio do email não existe ou não aceita mensagens. Verifique se digitou corretamente | Este email já está cadastrado. Por favor, utilize outro email ou faça login | Este email foi utilizado em uma conta deletada e não pode ser reutilizado por questões de segurança",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
@@ -2429,10 +2481,19 @@ const docTemplate = `{
         "handler.AuthResponse": {
             "type": "object",
             "properties": {
+                "accessToken": {
+                    "description": "Token de acesso curto (15 minutos)",
+                    "type": "string"
+                },
+                "expiresIn": {
+                    "description": "Segundos até expiração do access token",
+                    "type": "integer"
+                },
                 "message": {
                     "type": "string"
                 },
-                "token": {
+                "refreshToken": {
+                    "description": "Token de refresh longo (7 dias)",
                     "type": "string"
                 },
                 "user": {
@@ -2759,6 +2820,18 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/handler.ItemRecategorizationResult"
                     }
+                }
+            }
+        },
+        "handler.RefreshTokenRequest": {
+            "type": "object",
+            "required": [
+                "refreshToken"
+            ],
+            "properties": {
+                "refreshToken": {
+                    "type": "string",
+                    "example": "a1b2c3d4e5f6..."
                 }
             }
         },

@@ -62,10 +62,18 @@ func LogoutHandler(ctx *gin.Context) {
 		return
 	}
 
-	// 🔒 NOVO: Limpa o active_token do usuário
+	// 🔒 Limpa o active_token do usuário
 	if err := db.Model(&schemas.User{}).Where("id = ?", userID).Update("active_token", nil).Error; err != nil {
 		logger.ErrorF("Erro ao limpar active_token: %v", err)
 		// Não falha o logout por isso, já adicionou na blacklist
+	}
+
+	// 🔒 NOVO: Revoga todos os refresh tokens do usuário (força re-login)
+	if err := db.Model(&schemas.RefreshToken{}).Where("user_id = ? AND revoked_at IS NULL", userID).Update("revoked_at", time.Now()).Error; err != nil {
+		logger.ErrorF("Erro ao revogar refresh tokens: %v", err)
+		// Não falha o logout por isso, access token já foi invalidado
+	} else {
+		logger.InfoF("Todos os refresh tokens do usuário %d foram revogados", userID.(uint))
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{

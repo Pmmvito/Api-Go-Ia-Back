@@ -29,8 +29,14 @@ type UserResponse struct {
 }
 
 // HashPassword gera o hash da senha do usuário usando bcrypt.
+// 🔒 SEGURANÇA: Usa cost 12 (4x mais seguro que default 10)
 func (u *User) HashPassword(password string) error {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	// Bcrypt cost 12 = 4096 iterações (vs cost 10 = 1024 iterações)
+	// Cada +1 no cost dobra o tempo de processamento
+	// Cost 12 é recomendado para 2024+ (balanço segurança/performance)
+	const bcryptCost = 12
+	
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
 	if err != nil {
 		return err
 	}

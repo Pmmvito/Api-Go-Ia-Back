@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Pmmvito/Golang-Api-Exemple/config"
@@ -24,28 +26,39 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required" example:"senha123"`
 }
 
-// AuthResponse define a estrutura da resposta de autenticação, contendo o token JWT e os dados do usuário.
+// AuthResponse define a estrutura da resposta de autenticação, contendo os tokens JWT e os dados do usuário.
 type AuthResponse struct {
-	Message string               `json:"message"`
-	Token   string               `json:"token"`
-	User    schemas.UserResponse `json:"user"`
+	Message      string               `json:"message"`
+	AccessToken  string               `json:"accessToken"`  // Token de acesso curto (15 minutos)
+	RefreshToken string               `json:"refreshToken"` // Token de refresh longo (7 dias)
+	ExpiresIn    int64                `json:"expiresIn"`    // Segundos até expiração do access token
+	User         schemas.UserResponse `json:"user"`
 }
 
-// GenerateJWT gera um token JWT para o usuário com validade de 7 dias.
-func GenerateJWT(userID uint) (string, error) {
+// GenerateAccessToken gera um access token JWT de curta duração (15 minutos)
+func GenerateAccessToken(userID uint) (string, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		secret = "default-secret-key-change-in-production"
+		return "", jwt.ErrInvalidKey
 	}
+
+	// 🔒 Access Token: 15 minutos (segurança alta)
+	expirationTime := time.Now().Add(15 * time.Minute)
 
 	claims := jwt.MapClaims{
 		"user_id": userID,
-		"exp":     time.Now().Add(time.Hour * 24 * 7).Unix(), // Token válido por 7 dias
+		"type":    "access", // Tipo do token
+		"exp":     expirationTime.Unix(),
 		"iat":     time.Now().Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(secret))
+}
+
+// GenerateJWT mantido por compatibilidade (usar GenerateAccessToken para novos códigos)
+func GenerateJWT(userID uint) (string, error) {
+	return GenerateAccessToken(userID)
 }
 
 // @Summary Register new user
@@ -67,11 +80,14 @@ func RegisterHandler(ctx *gin.Context) {
 		return
 	}
 
+	// Normalizar email para lowercase (emails são case-insensitive)
+	request.Email = strings.ToLower(strings.TrimSpace(request.Email))
+
 	// Validar email com verificação MX
 	emailValidator := config.NewEmailValidator()
 	valid, errorMsg := emailValidator.ValidateEmail(request.Email)
 	if !valid {
-		logger.WarnF("Email validation failed for %s: %s", request.Email, errorMsg)
+		logger.WarnF("Email validation failed for %s: %s", maskEmail(request.Email), errorMsg)
 		sendError(ctx, http.StatusBadRequest, errorMsg)
 		return
 	}
@@ -80,13 +96,28 @@ func RegisterHandler(ctx *gin.Context) {
 	// Usamos Unscoped() para buscar também usuários com deleted_at não null
 	var existingUser schemas.User
 	if err := db.Unscoped().Where("email = ?", request.Email).First(&existingUser).Error; err == nil {
-		// Email encontrado - pode ser usuário ativo ou deletado
+		// 🔒 SEGURANÇA: Não revelar se email existe ou se conta foi deletada
+		// SEMPRE retornar mensagem genérica para prevenir email enumeration
+		logger.WarnF("Tentativa de registro com email já existente (IP: %s)", maskIP(ctx.ClientIP()))
+		
+		// Se conta foi deletada há mais de 30 dias, permitir re-cadastro
 		if existingUser.DeletedAt.Valid {
-			sendError(ctx, http.StatusBadRequest, "Este email foi utilizado em uma conta deletada e não pode ser reutilizado por questões de segurança")
+			daysSinceDeletion := time.Since(existingUser.DeletedAt.Time).Hours() / 24
+			if daysSinceDeletion >= 30 {
+				logger.InfoF("Permitindo re-cadastro de email deletado há %.0f dias", daysSinceDeletion)
+				// Hard delete para permitir re-cadastro
+				db.Unscoped().Delete(&existingUser)
+				// Continua o fluxo de registro normalmente
+			} else {
+				// Conta deletada há menos de 30 dias - mesma mensagem genérica
+				sendError(ctx, http.StatusBadRequest, "Este email já está cadastrado. Por favor, utilize outro email ou faça login")
+				return
+			}
 		} else {
+			// Conta ativa - mesma mensagem genérica
 			sendError(ctx, http.StatusBadRequest, "Este email já está cadastrado. Por favor, utilize outro email ou faça login")
+			return
 		}
-		return
 	}
 
 	// Cria novo usuário
@@ -116,26 +147,36 @@ func RegisterHandler(ctx *gin.Context) {
 		// O usuário pode criar suas categorias manualmente depois
 	}
 
-	// Gera token JWT
-	token, err := GenerateJWT(user.ID)
+	// 🔒 Gera access token (15 minutos)
+	accessToken, err := GenerateAccessToken(user.ID)
 	if err != nil {
-		logger.ErrorF("error generating token: %v", err.Error())
+		logger.ErrorF("error generating access token: %v", err.Error())
 		sendError(ctx, http.StatusInternalServerError, "Usuário criado com sucesso, mas houve erro ao gerar o token de autenticação. Por favor, faça login")
 		return
 	}
 
-	// 🔒 NOVO: Salva token no usuário
-	user.ActiveToken = &token
+	// 🔒 Gera e salva refresh token (7 dias)
+	refreshTokenModel, err := schemas.CreateRefreshToken(db, user.ID)
+	if err != nil {
+		logger.ErrorF("error creating refresh token: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Usuário criado com sucesso, mas houve erro ao gerar o refresh token. Por favor, faça login")
+		return
+	}
+
+	// 🔒 Salva access token no usuário (para revogação)
+	user.ActiveToken = &accessToken
 	if err := db.Save(&user).Error; err != nil {
 		logger.ErrorF("error saving active token: %v", err.Error())
 		// Não falha o registro por isso, apenas loga
 	}
 
-	// Retorna resposta
+	// Retorna resposta com ambos tokens
 	ctx.JSON(http.StatusCreated, AuthResponse{
-		Message: "User registered successfully",
-		Token:   token,
-		User:    user.ToResponse(),
+		Message:      "User registered successfully",
+		AccessToken:  accessToken,
+		RefreshToken: refreshTokenModel.Token,
+		ExpiresIn:    15 * 60, // 15 minutos em segundos
+		User:         user.ToResponse(),
 	})
 }
 
@@ -159,6 +200,9 @@ func LoginHandler(ctx *gin.Context) {
 		return
 	}
 
+	// Normalizar email para lowercase (emails são case-insensitive)
+	request.Email = strings.ToLower(strings.TrimSpace(request.Email))
+
 	// Busca usuário por email
 	var user schemas.User
 	if err := db.Where("email = ?", request.Email).First(&user).Error; err != nil {
@@ -172,12 +216,12 @@ func LoginHandler(ctx *gin.Context) {
 		return
 	}
 
-	// 🔒 NOVO: Invalida token anterior se existir
+	// 🔒 Invalida access token anterior se existir
 	if user.ActiveToken != nil && *user.ActiveToken != "" {
-		logger.InfoF("Invalidating previous token for user %d", user.ID)
+		logger.InfoF("Invalidating previous access token for user %d", user.ID)
 
 		// Adiciona token anterior à blacklist
-		expiresAt := time.Now().Add(time.Hour * 24 * 7) // Mesmo TTL do token
+		expiresAt := time.Now().Add(15 * time.Minute) // Mesmo TTL do access token
 		db.Create(&schemas.TokenBlacklist{
 			UserID:    user.ID,
 			Token:     *user.ActiveToken,
@@ -185,26 +229,39 @@ func LoginHandler(ctx *gin.Context) {
 		})
 	}
 
-	// Gera novo token JWT
-	token, err := GenerateJWT(user.ID)
+	// 🔒 Revoga todos os refresh tokens anteriores do usuário (força re-login em todos os dispositivos)
+	db.Model(&schemas.RefreshToken{}).Where("user_id = ? AND revoked_at IS NULL", user.ID).Update("revoked_at", time.Now())
+
+	// 🔒 Gera novo access token (15 minutos)
+	accessToken, err := GenerateAccessToken(user.ID)
 	if err != nil {
-		logger.ErrorF("error generating token: %v", err.Error())
+		logger.ErrorF("error generating access token: %v", err.Error())
 		sendError(ctx, http.StatusInternalServerError, "Erro ao gerar token de autenticação. Por favor, tente novamente")
 		return
 	}
 
-	// 🔒 NOVO: Salva novo token no usuário
-	user.ActiveToken = &token
+	// 🔒 Gera e salva novo refresh token (7 dias)
+	refreshTokenModel, err := schemas.CreateRefreshToken(db, user.ID)
+	if err != nil {
+		logger.ErrorF("error creating refresh token: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Erro ao gerar refresh token. Por favor, tente novamente")
+		return
+	}
+
+	// 🔒 Salva novo access token no usuário (para revogação)
+	user.ActiveToken = &accessToken
 	if err := db.Save(&user).Error; err != nil {
 		logger.ErrorF("error saving active token: %v", err.Error())
 		// Não falha o login por isso, apenas loga
 	}
 
-	// Retorna resposta
+	// Retorna resposta com ambos tokens
 	ctx.JSON(http.StatusOK, AuthResponse{
-		Message: "Login successful",
-		Token:   token,
-		User:    user.ToResponse(),
+		Message:      "Login successful",
+		AccessToken:  accessToken,
+		RefreshToken: refreshTokenModel.Token,
+		ExpiresIn:    15 * 60, // 15 minutos em segundos
+		User:         user.ToResponse(),
 	})
 }
 
@@ -229,6 +286,96 @@ func MeHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
 		"message": "User retrieved successfully",
 		"data":    user.ToResponse(),
+	})
+}
+
+// RefreshTokenRequest define a estrutura para renovar o access token
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refreshToken" binding:"required" example:"a1b2c3d4e5f6..."`
+}
+
+// @Summary Refresh access token
+// @Description Use a valid refresh token to get a new access token. The refresh token can only be used once (one-time use).
+// @Tags 🔐 Authentication
+// @Accept json
+// @Produce json
+// @Param request body RefreshTokenRequest true "Refresh token"
+// @Success 200 {object} AuthResponse "New access token generated successfully"
+// @Failure 400 {object} ErrorResponse "Refresh token é obrigatório"
+// @Failure 401 {object} ErrorResponse "Refresh token inválido, expirado ou já utilizado. Por favor, faça login novamente"
+// @Failure 500 {object} ErrorResponse "Erro ao gerar novo access token. Por favor, tente novamente"
+// @Router /auth/refresh [post]
+func RefreshTokenHandler(ctx *gin.Context) {
+	var request RefreshTokenRequest
+
+	if err := ctx.ShouldBindJSON(&request); err != nil {
+		logger.ErrorF("validation error: %v", err.Error())
+		sendError(ctx, http.StatusBadRequest, "Refresh token é obrigatório")
+		return
+	}
+
+	// Busca refresh token no banco
+	var refreshToken schemas.RefreshToken
+	if err := db.Where("token = ?", request.RefreshToken).First(&refreshToken).Error; err != nil {
+		logger.WarnF("Tentativa de usar refresh token inexistente (IP: %s)", maskIP(ctx.ClientIP()))
+		sendError(ctx, http.StatusUnauthorized, "Refresh token inválido, expirado ou já utilizado. Por favor, faça login novamente")
+		return
+	}
+
+	// 🔒 Valida se o refresh token está válido
+	if !refreshToken.IsValid() {
+		logger.WarnF("Tentativa de usar refresh token inválido para user_id %d (IP: %s)", refreshToken.UserID, maskIP(ctx.ClientIP()))
+		sendError(ctx, http.StatusUnauthorized, "Refresh token inválido, expirado ou já utilizado. Por favor, faça login novamente")
+		return
+	}
+
+	// 🔒 Marca refresh token como usado (one-time use)
+	if err := refreshToken.MarkAsUsed(db); err != nil {
+		logger.ErrorF("error marking refresh token as used: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Erro ao processar refresh token. Por favor, tente novamente")
+		return
+	}
+
+	// Busca usuário
+	var user schemas.User
+	if err := db.First(&user, refreshToken.UserID).Error; err != nil {
+		logger.ErrorF("user not found for refresh token: %v", err.Error())
+		sendError(ctx, http.StatusUnauthorized, "Usuário não encontrado. Por favor, faça login novamente")
+		return
+	}
+
+	// 🔒 Gera novo access token (15 minutos)
+	newAccessToken, err := GenerateAccessToken(user.ID)
+	if err != nil {
+		logger.ErrorF("error generating new access token: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Erro ao gerar novo access token. Por favor, tente novamente")
+		return
+	}
+
+	// 🔒 Gera novo refresh token (rotation - melhor segurança)
+	newRefreshToken, err := schemas.CreateRefreshToken(db, user.ID)
+	if err != nil {
+		logger.ErrorF("error creating new refresh token: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Erro ao gerar novo refresh token. Por favor, tente novamente")
+		return
+	}
+
+	// 🔒 Atualiza access token ativo no usuário
+	user.ActiveToken = &newAccessToken
+	if err := db.Save(&user).Error; err != nil {
+		logger.ErrorF("error saving new active token: %v", err.Error())
+		// Não falha o refresh por isso, apenas loga
+	}
+
+	logger.InfoF("Access token renovado com sucesso para user %d (IP: %s)", user.ID, maskIP(ctx.ClientIP()))
+
+	// Retorna novos tokens
+	ctx.JSON(http.StatusOK, AuthResponse{
+		Message:      "Access token refreshed successfully",
+		AccessToken:  newAccessToken,
+		RefreshToken: newRefreshToken.Token,
+		ExpiresIn:    15 * 60, // 15 minutos em segundos
+		User:         user.ToResponse(),
 	})
 }
 
@@ -264,11 +411,18 @@ func ForgotPasswordHandler(ctx *gin.Context) {
 		return
 	}
 
+	// Normalizar email para lowercase (emails são case-insensitive)
+	request.Email = strings.ToLower(strings.TrimSpace(request.Email))
+
 	// Busca usuário por email
 	var user schemas.User
 	if err := db.Where("email = ?", request.Email).First(&user).Error; err != nil {
-		// Retorna erro 404 se usuário não encontrado
-		sendError(ctx, http.StatusNotFound, "Usuário não encontrado")
+		// 🔒 SEGURANÇA: Não revelar se email existe (prevenir email enumeration)
+		// SEMPRE retornar sucesso mesmo se email não existir
+		logger.WarnF("Tentativa de forgot-password com email inexistente (IP: %s)", maskIP(ctx.ClientIP()))
+		ctx.JSON(http.StatusOK, gin.H{
+			"message": "Se este email estiver cadastrado, você receberá um código de recuperação em alguns instantes",
+		})
 		return
 	}
 
@@ -339,6 +493,9 @@ func ResetPasswordHandler(ctx *gin.Context) {
 		return
 	}
 
+	// Normalizar email para lowercase (emails são case-insensitive)
+	request.Email = strings.ToLower(strings.TrimSpace(request.Email))
+
 	// Busca usuário
 	var user schemas.User
 	if err := db.Where("email = ?", request.Email).First(&user).Error; err != nil {
@@ -346,17 +503,45 @@ func ResetPasswordHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Busca token válido
+	// 🔒 SEGURANÇA: Buscar token do usuário (independente do código estar correto)
 	var passwordReset schemas.PasswordReset
-	if err := db.Where("user_id = ? AND token = ? AND used = false", user.ID, request.Token).
-		First(&passwordReset).Error; err != nil {
-		sendError(ctx, http.StatusUnauthorized, "Código inválido ou já utilizado")
+	if err := db.Where("user_id = ? AND used = false", user.ID).
+		Order("created_at DESC").First(&passwordReset).Error; err != nil {
+		sendError(ctx, http.StatusUnauthorized, "Nenhum código de recuperação encontrado. Por favor, solicite um novo código")
 		return
 	}
 
-	// Verifica se o token ainda é válido
+	// Verificar se o token ainda é válido (não expirado)
 	if !passwordReset.IsValid() {
 		sendError(ctx, http.StatusUnauthorized, "Código expirado. Solicite um novo código de recuperação")
+		return
+	}
+
+	// 🔒 SEGURANÇA: Verificar número de tentativas incorretas
+	if passwordReset.Attempts >= 3 {
+		logger.WarnF("Código de recuperação bloqueado após 3 tentativas incorretas (UserID: %d)", user.ID)
+		// Marcar como usado para bloquear
+		passwordReset.MarkAsUsed(db)
+		sendError(ctx, http.StatusUnauthorized, "Código bloqueado após 3 tentativas incorretas. Por favor, solicite um novo código de recuperação")
+		return
+	}
+
+	// 🔒 SEGURANÇA: Verificar se código está correto
+	if passwordReset.Token != request.Token {
+		// Incrementar tentativas
+		passwordReset.Attempts++
+		db.Save(&passwordReset)
+		
+		remaining := 3 - passwordReset.Attempts
+		logger.WarnF("Tentativa incorreta de reset password (UserID: %d, Tentativas: %d/3)", user.ID, passwordReset.Attempts)
+		
+		if remaining > 0 {
+			sendError(ctx, http.StatusUnauthorized, fmt.Sprintf("Código incorreto. %d tentativa(s) restante(s)", remaining))
+		} else {
+			// Última tentativa, bloquear código
+			passwordReset.MarkAsUsed(db)
+			sendError(ctx, http.StatusUnauthorized, "Código incorreto. Código bloqueado após 3 tentativas. Solicite um novo código")
+		}
 		return
 	}
 
