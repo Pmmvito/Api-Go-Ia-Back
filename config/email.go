@@ -686,3 +686,210 @@ func (e *EmailService) sendEmail(to, subject, htmlBody string) error {
 func (e *EmailService) IsConfigured() bool {
 	return e.SenderEmail != "" && e.Password != ""
 }
+
+// 🔒 SendEmailChangeConfirmation envia código para o EMAIL ATUAL do usuário
+// Usado para confirmar que o dono da conta autorizou a troca de email
+func (e *EmailService) SendEmailChangeConfirmation(toEmail, userName, confirmationCode, newEmail string) error {
+	subject := "🔒 Confirmação de Troca de Email - Ação Necessária"
+
+	htmlTemplate := `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #2d3748;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 0;
+            background-color: #f7fafc;
+        }
+        .container {
+            background-color: #ffffff;
+            margin: 20px;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .warning-icon {
+            font-size: 60px;
+            margin-bottom: 10px;
+        }
+        .content {
+            padding: 40px 30px;
+            background-color: #ffffff;
+        }
+        .greeting {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #1a202c;
+        }
+        .alert-box {
+            background-color: #fff5f5;
+            border-left: 4px solid #e53e3e;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .alert-box h3 {
+            color: #e53e3e;
+            margin: 0 0 10px 0;
+            font-size: 18px;
+        }
+        .alert-box p {
+            margin: 5px 0;
+            color: #742a2a;
+            font-size: 14px;
+        }
+        .code-box {
+            background: linear-gradient(135deg, #f6f8fb 0%, #edf2f7 100%);
+            border: 2px solid #e53e3e;
+            padding: 30px;
+            text-align: center;
+            margin: 30px 0;
+            border-radius: 10px;
+        }
+        .code-label {
+            font-size: 14px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        .code {
+            font-size: 42px;
+            font-weight: 700;
+            color: #e53e3e;
+            letter-spacing: 8px;
+            font-family: 'Courier New', monospace;
+        }
+        .info-box {
+            background-color: #fef5e7;
+            border-left: 4px solid #f39c12;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-box p {
+            margin: 0;
+            color: #856404;
+            font-size: 14px;
+        }
+        .email-change-box {
+            background-color: #edf2f7;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #cbd5e0;
+        }
+        .email-change-box p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .email-old {
+            color: #e53e3e;
+            font-weight: 600;
+        }
+        .email-new {
+            color: #38a169;
+            font-weight: 600;
+        }
+        .footer {
+            background-color: #edf2f7;
+            padding: 25px 30px;
+            text-align: center;
+            font-size: 13px;
+            color: #718096;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+        strong {
+            color: #e53e3e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="warning-icon">🔒</div>
+            <h1>Confirme a Troca de Email</h1>
+        </div>
+        <div class="content">
+            <p class="greeting">Olá, <strong>{{.UserName}}</strong>!</p>
+            
+            <div class="alert-box">
+                <h3>⚠️ Solicitação de Troca de Email Detectada</h3>
+                <p>Foi solicitada uma alteração do email da sua conta no Sistema de Notas Fiscais.</p>
+            </div>
+            
+            <div class="email-change-box">
+                <p>📧 <strong>Email Atual:</strong> <span class="email-old">{{.CurrentEmail}}</span></p>
+                <p>🆕 <strong>Novo Email:</strong> <span class="email-new">{{.NewEmail}}</span></p>
+            </div>
+            
+            <p><strong>Para confirmar que VOCÊ autorizou esta troca:</strong></p>
+            
+            <div class="code-box">
+                <div class="code-label">Código de Confirmação (Email Atual)</div>
+                <div class="code">{{.ConfirmationCode}}</div>
+            </div>
+            
+            <div class="info-box">
+                <p><strong>Importante:</strong> Este código expira em 15 minutos. Você também receberá outro código no NOVO email.</p>
+            </div>
+            
+            <p style="margin-top: 25px;"><strong>Você NÃO solicitou esta troca?</strong></p>
+            <p>Se você não reconhece esta atividade, sua conta pode estar comprometida. Recomendamos:</p>
+            <ul style="color: #742a2a;">
+                <li>Alterar sua senha imediatamente</li>
+                <li>Ignorar este email (não inserir o código)</li>
+                <li>Entrar em contato com o suporte</li>
+            </ul>
+            
+            <div class="alert-box">
+                <p><strong>🔐 Segurança em Dobro:</strong> Mesmo após confirmar este código, você precisará inserir o código enviado para o NOVO email. Isso garante que você possui acesso a ambos os endereços.</p>
+            </div>
+        </div>
+        <div class="footer">
+            <p>Este é um email automático, por favor não responda.</p>
+            <p>&copy; 2025 Sistema de Notas Fiscais. Todos os direitos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>
+`
+
+	tmpl, err := template.New("emailChangeConfirmation").Parse(htmlTemplate)
+	if err != nil {
+		return fmt.Errorf("erro ao processar template: %v", err)
+	}
+
+	var body bytes.Buffer
+	err = tmpl.Execute(&body, map[string]string{
+		"UserName":         userName,
+		"CurrentEmail":     toEmail,
+		"NewEmail":         newEmail,
+		"ConfirmationCode": confirmationCode,
+	})
+	if err != nil {
+		return fmt.Errorf("erro ao executar template: %v", err)
+	}
+
+	return e.sendEmail(toEmail, subject, body.String())
+}

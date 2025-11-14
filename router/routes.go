@@ -42,10 +42,7 @@ func InitializeRoutes(router *gin.Engine) {
 		protected.POST("/logout", handler.LogoutHandler)
 		protected.DELETE("/user", handler.DeleteUserHandler) // 🗑️ Deletar conta do usuário
 
-		// � Trocar senha (usuário logado)
-		protected.POST("/auth/change-password", handler.ChangePasswordHandler)
-
-		// �👤 Atualização de perfil
+		// 👤 Atualização de perfil
 		protected.PATCH("/user/profile", handler.UpdateProfileHandler)
 		protected.POST("/user/request-email-change", handler.RequestEmailChangeHandler)
 		protected.POST("/user/confirm-email-change", handler.ConfirmEmailChangeHandler)

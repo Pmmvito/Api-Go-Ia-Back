@@ -174,18 +174,26 @@ type VerifyEmailRequest struct {
 }
 
 // ConfirmEmailRequest define a estrutura para confirmar novo email
+// ConfirmEmailRequest define dados para confirmar troca de email
+// 🔒 SEGURANÇA: Requer AMBOS códigos (email antigo + email novo)
 type ConfirmEmailRequest struct {
-	NewEmail string `json:"newEmail" binding:"required,email" example:"novo@example.com"`
-	Token    string `json:"token" binding:"required,len=6" example:"123456"`
+	NewEmail       string `json:"newEmail" binding:"required,email" example:"novo@example.com"`
+	TokenOldEmail  string `json:"tokenOldEmail" binding:"required,len=6" example:"123456"`  // Código do email ATUAL
+	TokenNewEmail  string `json:"tokenNewEmail" binding:"required,len=6" example:"654321"`  // Código do email NOVO
 }
 
 // EmailVerification armazena códigos de verificação de email
+// EmailVerification armazena dados de verificação de troca de email
+// 🔒 SEGURANÇA: Requer confirmação dupla (email antigo + email novo)
 type EmailVerification struct {
-	UserID    uint
-	NewEmail  string
-	Token     string
-	ExpiresAt time.Time
-	Used      bool
+	UserID           uint
+	NewEmail         string
+	Token            string    // Código enviado para email ANTIGO
+	TokenNewEmail    string    // Código enviado para email NOVO
+	OldEmailVerified bool      // Se usuário confirmou código do email antigo
+	NewEmailVerified bool      // Se usuário confirmou código do email novo
+	ExpiresAt        time.Time
+	Used             bool
 }
 
 // Mapa temporário para armazenar verificações de email (em produção, use banco de dados)
@@ -283,24 +291,36 @@ func RequestEmailChangeHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Gera código de verificação
-	code, err := GenerateRandomCode(6)
+	// 🔒 SEGURANÇA: Gera 2 códigos (confirmação dupla)
+	// Código 1: Enviado para EMAIL ATUAL (prova que é o dono da conta)
+	codeOldEmail, err := GenerateRandomCode(6)
 	if err != nil {
 		logger.ErrorF("error generating verification code: %v", err.Error())
 		sendError(ctx, http.StatusInternalServerError, "Erro ao gerar código de verificação")
 		return
 	}
 
-	// Armazena verificação (em produção, use banco de dados)
-	emailVerifications[user.ID] = &EmailVerification{
-		UserID:    user.ID,
-		NewEmail:  request.NewEmail,
-		Token:     code,
-		ExpiresAt: time.Now().Add(15 * time.Minute),
-		Used:      false,
+	// Código 2: Enviado para EMAIL NOVO (prova que possui o novo email)
+	codeNewEmail, err := GenerateRandomCode(6)
+	if err != nil {
+		logger.ErrorF("error generating verification code: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Erro ao gerar código de verificação")
+		return
 	}
 
-	// Envia email
+	// Armazena verificação (requer AMBOS códigos para confirmar)
+	emailVerifications[user.ID] = &EmailVerification{
+		UserID:           user.ID,
+		NewEmail:         request.NewEmail,
+		Token:            codeOldEmail,  // Código do email antigo
+		TokenNewEmail:    codeNewEmail,  // Código do email novo
+		OldEmailVerified: false,         // Ainda não verificou email antigo
+		NewEmailVerified: false,         // Ainda não verificou email novo
+		ExpiresAt:        time.Now().Add(15 * time.Minute),
+		Used:             false,
+	}
+
+	// Envia emails
 	emailService := config.NewEmailService()
 	if !emailService.IsConfigured() {
 		logger.ErrorF("email service not configured")
@@ -308,14 +328,31 @@ func RequestEmailChangeHandler(ctx *gin.Context) {
 		return
 	}
 
-	if err := emailService.SendEmailVerificationCode(request.NewEmail, user.Name, code); err != nil {
-		logger.ErrorF("error sending email: %v", err.Error())
-		sendError(ctx, http.StatusInternalServerError, "Erro ao enviar email de verificação")
+	// 🔒 Email 1: Código para EMAIL ATUAL (segurança)
+	if err := emailService.SendEmailChangeConfirmation(user.Email, user.Name, codeOldEmail, request.NewEmail); err != nil {
+		logger.ErrorF("error sending email to old address: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Erro ao enviar código de confirmação para seu email atual")
 		return
 	}
 
+	// 🔒 Email 2: Código para EMAIL NOVO (verificação de posse)
+	if err := emailService.SendEmailVerificationCode(request.NewEmail, user.Name, codeNewEmail); err != nil {
+		logger.ErrorF("error sending email to new address: %v", err.Error())
+		sendError(ctx, http.StatusInternalServerError, "Erro ao enviar código de verificação para o novo email")
+		return
+	}
+
+	logger.InfoF("Solicitação de troca de email para usuário %d: %s -> %s", user.ID, maskEmail(user.Email), maskEmail(request.NewEmail))
+
 	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Código de verificação enviado para o novo email. Válido por 15 minutos.",
+		"message": "Códigos de verificação enviados. Verifique seu email ATUAL e o NOVO email para confirmar a troca.",
+		"details": gin.H{
+			"oldEmail": maskEmail(user.Email),
+			"newEmail": maskEmail(request.NewEmail),
+			"step1":    "Insira o código recebido no seu email ATUAL",
+			"step2":    "Insira o código recebido no NOVO email",
+			"expires":  "15 minutos",
+		},
 	})
 }
 
@@ -336,7 +373,7 @@ func ConfirmEmailChangeHandler(ctx *gin.Context) {
 
 	if err := ctx.ShouldBindJSON(&request); err != nil {
 		logger.ErrorF("validation error: %v", err.Error())
-		sendError(ctx, http.StatusBadRequest, "Dados inválidos: email e código (6 dígitos) são obrigatórios")
+		sendError(ctx, http.StatusBadRequest, "Dados inválidos: email e AMBOS códigos (6 dígitos) são obrigatórios")
 		return
 	}
 
@@ -362,8 +399,16 @@ func ConfirmEmailChangeHandler(ctx *gin.Context) {
 		return
 	}
 
-	if verification.Token != request.Token {
-		sendError(ctx, http.StatusUnauthorized, "Código inválido")
+	// 🔒 SEGURANÇA: Valida AMBOS os códigos
+	if verification.Token != request.TokenOldEmail {
+		logger.WarnF("Tentativa de troca de email com código ANTIGO inválido para user %d", user.ID)
+		sendError(ctx, http.StatusUnauthorized, "Código do email ATUAL inválido")
+		return
+	}
+
+	if verification.TokenNewEmail != request.TokenNewEmail {
+		logger.WarnF("Tentativa de troca de email com código NOVO inválido para user %d", user.ID)
+		sendError(ctx, http.StatusUnauthorized, "Código do NOVO email inválido")
 		return
 	}
 
@@ -379,7 +424,8 @@ func ConfirmEmailChangeHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Atualiza email
+	// 🔒 Atualiza email (AMBOS códigos validados)
+	oldEmail := user.Email
 	user.Email = request.NewEmail
 	if err := db.Save(&user).Error; err != nil {
 		logger.ErrorF("error updating email: %v", err.Error())
@@ -390,8 +436,10 @@ func ConfirmEmailChangeHandler(ctx *gin.Context) {
 	// Marca verificação como usada
 	verification.Used = true
 
+	logger.InfoF("Email alterado com sucesso: %s -> %s (user %d)", maskEmail(oldEmail), maskEmail(user.Email), user.ID)
+
 	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Email atualizado com sucesso!",
+		"message": "✅ Email atualizado com sucesso! Ambos os códigos foram validados.",
 		"user":    user.ToResponse(),
 	})
 }
