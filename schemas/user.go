@@ -35,7 +35,7 @@ func (u *User) HashPassword(password string) error {
 	// Cada +1 no cost dobra o tempo de processamento
 	// Cost 12 é recomendado para 2024+ (balanço segurança/performance)
 	const bcryptCost = 12
-	
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCost)
 	if err != nil {
 		return err

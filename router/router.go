@@ -13,7 +13,7 @@ func Initialize() {
 
 	// 🔒 Middlewares de segurança
 	router.Use(SecureMiddleware()) // HTTPS + Security Headers
-	router.Use(CORSMiddleware())    // CORS seguro
+	router.Use(CORSMiddleware())   // CORS seguro
 
 	//Initialize routes
 	InitializeRoutes(router)

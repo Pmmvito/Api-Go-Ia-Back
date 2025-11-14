@@ -11,11 +11,11 @@ import (
 // RefreshToken armazena tokens de refresh para autenticação
 type RefreshToken struct {
 	gorm.Model
-	Token     string    `gorm:"type:varchar(255);uniqueIndex;not null"` // Token UUID único
-	UserID    uint      `gorm:"not null;index"`                         // ID do usuário
-	ExpiresAt time.Time `gorm:"not null"`                               // Data de expiração (7 dias)
-	Used      bool      `gorm:"default:false;not null"`                 // Se já foi usado
-	RevokedAt *time.Time `gorm:"index"`                                 // Data de revogação (logout)
+	Token     string     `gorm:"type:varchar(255);uniqueIndex;not null"` // Token UUID único
+	UserID    uint       `gorm:"not null;index"`                         // ID do usuário
+	ExpiresAt time.Time  `gorm:"not null"`                               // Data de expiração (7 dias)
+	Used      bool       `gorm:"default:false;not null"`                 // Se já foi usado
+	RevokedAt *time.Time `gorm:"index"`                                  // Data de revogação (logout)
 }
 
 // GenerateRefreshToken cria um novo refresh token criptograficamente seguro
@@ -25,7 +25,7 @@ func GenerateRefreshToken() (string, error) {
 	if _, err := rand.Read(bytes); err != nil {
 		return "", err
 	}
-	
+
 	// Converter para string hexadecimal (64 caracteres)
 	return hex.EncodeToString(bytes), nil
 }
@@ -33,22 +33,22 @@ func GenerateRefreshToken() (string, error) {
 // IsValid verifica se o refresh token ainda é válido
 func (rt *RefreshToken) IsValid() bool {
 	now := time.Now()
-	
+
 	// Token não pode estar expirado
 	if rt.ExpiresAt.Before(now) {
 		return false
 	}
-	
+
 	// Token não pode estar revogado
 	if rt.RevokedAt != nil {
 		return false
 	}
-	
+
 	// Token não pode ter sido usado (one-time use)
 	if rt.Used {
 		return false
 	}
-	
+
 	return true
 }
 
@@ -71,18 +71,18 @@ func CreateRefreshToken(db *gorm.DB, userID uint) (*RefreshToken, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	refreshToken := &RefreshToken{
 		Token:     token,
 		UserID:    userID,
 		ExpiresAt: time.Now().Add(7 * 24 * time.Hour), // 7 dias
 		Used:      false,
 	}
-	
+
 	if err := db.Create(refreshToken).Error; err != nil {
 		return nil, err
 	}
-	
+
 	return refreshToken, nil
 }
 
@@ -90,7 +90,7 @@ func CreateRefreshToken(db *gorm.DB, userID uint) (*RefreshToken, error) {
 func CleanupExpiredTokens(db *gorm.DB) error {
 	// Deletar tokens expirados há mais de 30 dias
 	cutoff := time.Now().Add(-30 * 24 * time.Hour)
-	
+
 	return db.Unscoped().Where("expires_at < ? OR revoked_at < ?", cutoff, cutoff).
 		Delete(&RefreshToken{}).Error
 }

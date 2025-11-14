@@ -51,10 +51,10 @@ func (rl *RateLimiter) cleanupStaleEntries() {
 	for {
 		time.Sleep(time.Hour)
 		rl.mu.Lock()
-		
+
 		// Limpa todos (reset a cada hora)
 		rl.ips = make(map[string]*rate.Limiter)
-		
+
 		rl.mu.Unlock()
 	}
 }
@@ -98,7 +98,7 @@ func StrictRateLimitMiddleware(maxRequests int, window time.Duration) gin.Handle
 		for {
 			time.Sleep(5 * time.Minute)
 			mu.Lock()
-			
+
 			now := time.Now()
 			for ip, info := range clients {
 				// Remove clientes inativos há mais de 10 minutos
@@ -106,7 +106,7 @@ func StrictRateLimitMiddleware(maxRequests int, window time.Duration) gin.Handle
 					delete(clients, ip)
 				}
 			}
-			
+
 			mu.Unlock()
 		}
 	}()

@@ -99,7 +99,7 @@ func RegisterHandler(ctx *gin.Context) {
 		// 🔒 SEGURANÇA: Não revelar se email existe ou se conta foi deletada
 		// SEMPRE retornar mensagem genérica para prevenir email enumeration
 		logger.WarnF("Tentativa de registro com email já existente (IP: %s)", maskIP(ctx.ClientIP()))
-		
+
 		// Se conta foi deletada há mais de 30 dias, permitir re-cadastro
 		if existingUser.DeletedAt.Valid {
 			daysSinceDeletion := time.Since(existingUser.DeletedAt.Time).Hours() / 24
@@ -531,10 +531,10 @@ func ResetPasswordHandler(ctx *gin.Context) {
 		// Incrementar tentativas
 		passwordReset.Attempts++
 		db.Save(&passwordReset)
-		
+
 		remaining := 3 - passwordReset.Attempts
 		logger.WarnF("Tentativa incorreta de reset password (UserID: %d, Tentativas: %d/3)", user.ID, passwordReset.Attempts)
-		
+
 		if remaining > 0 {
 			sendError(ctx, http.StatusUnauthorized, fmt.Sprintf("Código incorreto. %d tentativa(s) restante(s)", remaining))
 		} else {
