@@ -177,9 +177,9 @@ type VerifyEmailRequest struct {
 // ConfirmEmailRequest define dados para confirmar troca de email
 // 🔒 SEGURANÇA: Requer AMBOS códigos (email antigo + email novo)
 type ConfirmEmailRequest struct {
-	NewEmail       string `json:"newEmail" binding:"required,email" example:"novo@example.com"`
-	TokenOldEmail  string `json:"tokenOldEmail" binding:"required,len=6" example:"123456"`  // Código do email ATUAL
-	TokenNewEmail  string `json:"tokenNewEmail" binding:"required,len=6" example:"654321"`  // Código do email NOVO
+	NewEmail      string `json:"newEmail" binding:"required,email" example:"novo@example.com"`
+	TokenOldEmail string `json:"tokenOldEmail" binding:"required,len=6" example:"123456"` // Código do email ATUAL
+	TokenNewEmail string `json:"tokenNewEmail" binding:"required,len=6" example:"654321"` // Código do email NOVO
 }
 
 // EmailVerification armazena códigos de verificação de email
@@ -188,10 +188,10 @@ type ConfirmEmailRequest struct {
 type EmailVerification struct {
 	UserID           uint
 	NewEmail         string
-	Token            string    // Código enviado para email ANTIGO
-	TokenNewEmail    string    // Código enviado para email NOVO
-	OldEmailVerified bool      // Se usuário confirmou código do email antigo
-	NewEmailVerified bool      // Se usuário confirmou código do email novo
+	Token            string // Código enviado para email ANTIGO
+	TokenNewEmail    string // Código enviado para email NOVO
+	OldEmailVerified bool   // Se usuário confirmou código do email antigo
+	NewEmailVerified bool   // Se usuário confirmou código do email novo
 	ExpiresAt        time.Time
 	Used             bool
 }
@@ -312,10 +312,10 @@ func RequestEmailChangeHandler(ctx *gin.Context) {
 	emailVerifications[user.ID] = &EmailVerification{
 		UserID:           user.ID,
 		NewEmail:         request.NewEmail,
-		Token:            codeOldEmail,  // Código do email antigo
-		TokenNewEmail:    codeNewEmail,  // Código do email novo
-		OldEmailVerified: false,         // Ainda não verificou email antigo
-		NewEmailVerified: false,         // Ainda não verificou email novo
+		Token:            codeOldEmail, // Código do email antigo
+		TokenNewEmail:    codeNewEmail, // Código do email novo
+		OldEmailVerified: false,        // Ainda não verificou email antigo
+		NewEmailVerified: false,        // Ainda não verificou email novo
 		ExpiresAt:        time.Now().Add(15 * time.Minute),
 		Used:             false,
 	}

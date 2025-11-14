@@ -156,6 +156,9 @@ func UpdateItemHandler(ctx *gin.Context) {
 		return
 	}
 
+	// Guarda o receiptID para buscar depois
+	receiptID := item.ReceiptID
+
 	// Atualiza apenas os campos fornecidos
 	if request.CategoryID != nil {
 		item.CategoryID = *request.CategoryID
@@ -179,7 +182,44 @@ func UpdateItemHandler(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, item.ToResponse())
+	// 🔄 NOVO: Recalcula totais da nota fiscal automaticamente
+	var receipt schemas.Receipt
+	if err := db.Preload("Items").Preload("Items.Category").Preload("Items.Product").
+		First(&receipt, receiptID).Error; err != nil {
+		logger.ErrorF("error loading receipt for recalculation: %v", err.Error())
+		// Não falha a operação, apenas retorna o item sem totais da nota
+		ctx.JSON(http.StatusOK, item.ToResponse())
+		return
+	}
+
+	// Recalcula subtotal da nota (soma de todos os items)
+	var newSubtotal float64
+	for _, receiptItem := range receipt.Items {
+		newSubtotal += receiptItem.Total
+	}
+
+	// Atualiza totais da nota
+	receipt.Subtotal = newSubtotal
+	receipt.Total = newSubtotal - receipt.Discount
+
+	if err := db.Save(&receipt).Error; err != nil {
+		logger.ErrorF("error updating receipt totals: %v", err.Error())
+		// Não falha a operação, apenas retorna o item sem totais da nota
+		ctx.JSON(http.StatusOK, item.ToResponse())
+		return
+	}
+
+	// ✅ Retorna item atualizado + totais recalculados da nota
+	ctx.JSON(http.StatusOK, gin.H{
+		"item": item.ToResponse(),
+		"receipt": gin.H{
+			"id":         receipt.ID,
+			"subtotal":   receipt.Subtotal,
+			"discount":   receipt.Discount,
+			"total":      receipt.Total,
+			"itemsCount": len(receipt.Items),
+		},
+	})
 }
 
 // @Summary Delete an item
@@ -224,6 +264,9 @@ func DeleteItemHandler(ctx *gin.Context) {
 		return
 	}
 
+	// Guarda o receiptID para recalcular depois
+	receiptID := item.ReceiptID
+
 	// Soft delete do item
 	// NOTA: NÃO deletamos o produto pois ele pode estar sendo usado por outros items
 	if err := db.Delete(&item).Error; err != nil {
@@ -232,9 +275,48 @@ func DeleteItemHandler(ctx *gin.Context) {
 		return
 	}
 
-	logger.InfoF("Item %s soft deleted successfully", id)
+	// 🔄 NOVO: Recalcula totais da nota fiscal após deletar item
+	var receipt schemas.Receipt
+	if err := db.Preload("Items").First(&receipt, receiptID).Error; err != nil {
+		logger.ErrorF("error loading receipt for recalculation: %v", err.Error())
+		// Não falha a operação, apenas retorna mensagem simples
+		ctx.JSON(http.StatusOK, gin.H{
+			"message": "Item deleted successfully",
+		})
+		return
+	}
+
+	// Recalcula subtotal da nota (soma de todos os items restantes)
+	var newSubtotal float64
+	for _, receiptItem := range receipt.Items {
+		newSubtotal += receiptItem.Total
+	}
+
+	// Atualiza totais da nota
+	receipt.Subtotal = newSubtotal
+	receipt.Total = newSubtotal - receipt.Discount
+
+	if err := db.Save(&receipt).Error; err != nil {
+		logger.ErrorF("error updating receipt totals after deletion: %v", err.Error())
+		// Não falha a operação
+		ctx.JSON(http.StatusOK, gin.H{
+			"message": "Item deleted successfully",
+		})
+		return
+	}
+
+	logger.InfoF("Item %s soft deleted successfully, receipt totals recalculated", id)
+
+	// ✅ Retorna mensagem + totais recalculados da nota
 	ctx.JSON(http.StatusOK, gin.H{
 		"message": "Item deleted successfully",
+		"receipt": gin.H{
+			"id":         receipt.ID,
+			"subtotal":   receipt.Subtotal,
+			"discount":   receipt.Discount,
+			"total":      receipt.Total,
+			"itemsCount": len(receipt.Items),
+		},
 	})
 }
 

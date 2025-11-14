@@ -16,31 +16,23 @@ definitions:
       user:
         $ref: '#/definitions/schemas.UserResponse'
     type: object
-  handler.ChangePasswordRequest:
-    properties:
-      currentPassword:
-        example: senhaAtual123
-        minLength: 6
-        type: string
-      newPassword:
-        example: novaSenha123
-        minLength: 6
-        type: string
-    required:
-    - currentPassword
-    - newPassword
-    type: object
   handler.ConfirmEmailRequest:
     properties:
       newEmail:
         example: novo@example.com
         type: string
-      token:
+      tokenNewEmail:
+        description: Código do email NOVO
+        example: "654321"
+        type: string
+      tokenOldEmail:
+        description: Código do email ATUAL
         example: "123456"
         type: string
     required:
     - newEmail
-    - token
+    - tokenNewEmail
+    - tokenOldEmail
     type: object
   handler.CreateCategoryRequest:
     properties:
@@ -680,45 +672,6 @@ paths:
       summary: Get AI Worker Pool status
       tags:
       - AI
-  /auth/change-password:
-    post:
-      consumes:
-      - application/json
-      description: Change password for authenticated user. Requires current password
-        for security. User will remain logged in after password change.
-      parameters:
-      - description: Current and new password
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handler.ChangePasswordRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Password changed successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: 'Dados inválidos: senha atual e nova senha (mínimo 6 caracteres)
-            são obrigatórios | Nova senha deve ser diferente da senha atual'
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "401":
-          description: Senha atual incorreta. Verifique e tente novamente | Unauthorized
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "500":
-          description: Erro ao processar nova senha | Erro ao atualizar senha
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Change password (authenticated)
-      tags:
-      - "\U0001F510 Authentication"
   /auth/forgot-password:
     post:
       consumes:
