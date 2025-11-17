@@ -142,9 +142,9 @@ func StrictRateLimitMiddleware(maxRequests int, window time.Duration) gin.Handle
 	}
 }
 
-// LoginRateLimitMiddleware rate limit específico para login (3 tentativas por minuto)
+// LoginRateLimitMiddleware rate limit específico para login (5 tentativas por minuto)
 func LoginRateLimitMiddleware() gin.HandlerFunc {
-	return StrictRateLimitMiddleware(3, time.Minute)
+	return StrictRateLimitMiddleware(5, time.Minute)
 }
 
 // RegisterRateLimitMiddleware rate limit para registro (2 cadastros por minuto)
