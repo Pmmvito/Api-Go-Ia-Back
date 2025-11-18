@@ -282,7 +282,7 @@ func buildReceiptPrompt(currency string, locale string, amountHint *float64, cat
 	builder.WriteString("  * Use 'Outros' APENAS para produtos verdadeiramente únicos/raros que não se encaixam\n")
 	builder.WriteString("  * Seja CONSISTENTE: produtos iguais devem SEMPRE estar na mesma categoria\n")
 	builder.WriteString("\n")
-	builder.WriteString("- Identifique corretamente a unidade de medida:\n")
+	builder.WriteString("- Identifique corretamente a unidade de medida e use somente as listadas a seguir:\n")
 	builder.WriteString("  * Use 'un' para itens vendidos por unidade (ex: refrigerante, sorvete)\n")
 	builder.WriteString("  * Use 'kg' para itens vendidos por peso em quilogramas (ex: frutas, carnes, queijos)\n")
 	builder.WriteString("  * Use 'g' para itens vendidos em gramas\n")
