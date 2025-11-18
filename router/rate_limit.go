@@ -154,5 +154,5 @@ func RegisterRateLimitMiddleware() gin.HandlerFunc {
 
 // ForgotPasswordRateLimitMiddleware rate limit para forgot password (5 tentativas por hora)
 func ForgotPasswordRateLimitMiddleware() gin.HandlerFunc {
-	return StrictRateLimitMiddleware(5, time.Hour)
+	return StrictRateLimitMiddleware(10, time.Hour)
 }
