@@ -22,13 +22,13 @@ func InitializeRoutes(router *gin.Engine) {
 	public := router.Group(basePatch)
 	{
 		// 🔒 Rate limits estritos para endpoints sensíveis
-	public.POST("/register", handler.RegisterHandler)
-	public.POST("/login", handler.LoginHandler)
+		public.POST("/register", handler.RegisterHandler)
+		public.POST("/login", handler.LoginHandler)
 		// 🔑 Refresh Token (renovar access token)
-	public.POST("/auth/refresh", handler.RefreshTokenHandler)
+		public.POST("/auth/refresh", handler.RefreshTokenHandler)
 		// 🔑 Recuperação de senha
-	public.POST("/auth/forgot-password", handler.ForgotPasswordHandler)
-	public.POST("/auth/reset-password", handler.ResetPasswordHandler)
+		public.POST("/auth/forgot-password", handler.ForgotPasswordHandler)
+		public.POST("/auth/reset-password", handler.ResetPasswordHandler)
 	}
 
 	// Rotas protegidas (requerem autenticação JWT)

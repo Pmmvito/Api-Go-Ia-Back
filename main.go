@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/Pmmvito/Golang-Api-Exemple/config"
-	"github.com/Pmmvito/Golang-Api-Exemple/router"
 	docs "github.com/Pmmvito/Golang-Api-Exemple/docs"
+	"github.com/Pmmvito/Golang-Api-Exemple/router"
 	"github.com/joho/godotenv"
 )
 
