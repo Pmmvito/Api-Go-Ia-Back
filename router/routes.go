@@ -1,6 +1,7 @@
 package router
 
 import (
+	"os"
 	docs "github.com/Pmmvito/Golang-Api-Exemple/docs"
 	"github.com/Pmmvito/Golang-Api-Exemple/handler"
 	"github.com/gin-gonic/gin"
@@ -29,6 +30,14 @@ func InitializeRoutes(router *gin.Engine) {
 		// 🔑 Recuperação de senha
 		public.POST("/auth/forgot-password", handler.ForgotPasswordHandler)
 		public.POST("/auth/reset-password", handler.ResetPasswordHandler)
+	}
+
+	// Debug route (only in non-production), useful for checking headers and TLS
+	if os.Getenv("ENV") != "production" {
+		public.GET("/debug/headers", func(ctx *gin.Context) {
+			proto := ctx.Request.Header.Get("X-Forwarded-Proto")
+			ctx.JSON(200, gin.H{"x_forwarded_proto": proto, "tls": ctx.Request.TLS != nil, "host": ctx.Request.Host})
+		})
 	}
 
 	// Rotas protegidas (requerem autenticação JWT)

@@ -143,6 +143,14 @@ curl -v https://localhost:8080/api/v1/me
 # X-Content-Type-Options: nosniff
 ```
 
+**Nota importante sobre proxies/TLS termination:**
+- Se você está usando Loophole/ngrok/reverse proxy que termina o TLS, configure o proxy para enviar o header `X-Forwarded-Proto: https` quando o cliente se conectar via HTTPS.
+- Caso o proxy não envie esse header, o middleware pode redirecionar (GET) ou bloquear (para POST/PUT) requisições. Para evitar redirecionamentos que alterem o método HTTP, a aplicação agora rejeitará (HTTP 426) requisições não seguras para endpoints que realizam mutações (POST/PUT/PATCH/DELETE).
+- Alternativamente, você pode definir `TRUST_PROXY=true` na sua `.env` para sinalizar que o servidor está atrás de um proxy confiável e aceitar as requisições como seguras mesmo quando `ctx.Request.TLS == nil`.
+
+**Recomendação:**
+- Configure seu proxy para incluir `X-Forwarded-Proto` ou ajuste `TRUST_PROXY=true` se o proxy for confiável (ex.: Loophole, ngrok, ingress controller). Também confirme `CORS_ALLOWED_ORIGINS` inclua o domínio público.
+
 ---
 
 ### **4. ✅ Limite de Tentativas em Reset Password - IMPLEMENTADO**

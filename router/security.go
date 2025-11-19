@@ -3,6 +3,7 @@ package router
 import (
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,11 +16,28 @@ func SecureMiddleware() gin.HandlerFunc {
 		logger.Debugf("SecurityMiddleware: X-Forwarded-Proto=%s, TLS=%v, URL=%s", proto, ctx.Request.TLS != nil, ctx.Request.URL.String())
 		// 🔒 Forçar HTTPS em produção
 		if os.Getenv("ENV") == "production" {
-			// Verifica se está usando HTTP (não HTTPS)
-			if ctx.Request.Header.Get("X-Forwarded-Proto") != "https" && ctx.Request.TLS == nil {
-				httpsURL := "https://" + ctx.Request.Host + ctx.Request.RequestURI
-				logger.WarnF("Redirecionando HTTP para HTTPS: %s -> %s", ctx.Request.URL, httpsURL)
-				ctx.Redirect(http.StatusMovedPermanently, httpsURL)
+			xfProto := strings.ToLower(ctx.Request.Header.Get("X-Forwarded-Proto"))
+			// Considera seguro se TLS foi estabelecido, ou proxy informou https, ou confia no proxy via env
+			trustProxy := strings.ToLower(os.Getenv("TRUST_PROXY")) == "true"
+			isHTTPS := ctx.Request.TLS != nil || xfProto == "https" || trustProxy
+
+			if !isHTTPS {
+				// Não devemos fazer redirect para métodos não-idempotentes (POST/PUT/PATCH/DELETE)
+				// pois o redirect transforma em GET — isso quebra APIs.
+				if ctx.Request.Method == http.MethodGet || ctx.Request.Method == http.MethodHead {
+					httpsURL := "https://" + ctx.Request.Host + ctx.Request.RequestURI
+					logger.WarnF("Redirecionando HTTP para HTTPS: %s -> %s", ctx.Request.URL, httpsURL)
+					ctx.Redirect(http.StatusMovedPermanently, httpsURL)
+					ctx.Abort()
+					return
+				}
+
+				// Para métodos que não são seguros, retorne 426 Upgrade Required
+				logger.WarnF("Rejeitando requisição insegura (HTTPS requerido): %s %s", ctx.Request.Method, ctx.Request.URL)
+				ctx.JSON(http.StatusUpgradeRequired, gin.H{
+					"message": "HTTPS is required for this endpoint",
+					"errorCode": http.StatusUpgradeRequired,
+				})
 				ctx.Abort()
 				return
 			}
