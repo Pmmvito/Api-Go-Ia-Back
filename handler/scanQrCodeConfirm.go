@@ -8,8 +8,8 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"time"
 	"strings"
+	"time"
 
 	"github.com/Pmmvito/Golang-Api-Exemple/config"
 	"github.com/Pmmvito/Golang-Api-Exemple/schemas"
