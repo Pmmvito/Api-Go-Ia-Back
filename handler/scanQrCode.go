@@ -264,13 +264,14 @@ func categorizeItemsWithAI(items []NFCeItem, userID uint) (*CategorizationResult
 	// Pega modelo do ambiente ou usa padrão
 	model := os.Getenv("GEMINI_MODEL")
 	if model == "" {
-		model = "gemini-1.5-flash"
+		model = "gemini-2.5-flash"
 	}
 	logger.InfoF("📦 Using model: %s", model)
 
 	// Modelos preview/experimentais usam v1beta, modelos estáveis usam v1
 	apiVersion := "v1"
-	if strings.Contains(model, "preview") || strings.Contains(model, "exp-") || strings.Contains(model, "2.5") {
+	// Não utilizar a presença de "2.5" como indicador de preview; apenas flags explícitas
+	if strings.Contains(model, "preview") || strings.Contains(model, "exp-") {
 		apiVersion = "v1beta"
 	}
 	logger.InfoF("🔧 Using API version: %s", apiVersion)
@@ -307,10 +308,46 @@ func categorizeItemsWithAI(items []NFCeItem, userID uint) (*CategorizationResult
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	// Faz request para Gemini
-	logger.InfoF("🌐 Calling Gemini API (model: %s, apiVersion: %s)...", model, apiVersion)
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/%s/models/%s:generateContent?key=%s", apiVersion, model, apiKey)
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	// Faz request para Gemini com fallback para modelos não encontrados (404)
+	fallbackModel := "gemini-1.5-flash"
+	attemptModel := model
+	attemptAPIVersion := apiVersion
+	var resp *http.Response
+	for tries := 0; tries < 2; tries++ {
+		logger.InfoF("🌐 Calling Gemini API (model: %s, apiVersion: %s)...", attemptModel, attemptAPIVersion)
+		url := fmt.Sprintf("https://generativelanguage.googleapis.com/%s/models/%s:generateContent?key=%s", attemptAPIVersion, attemptModel, apiKey)
+		resp, err = http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+		if err != nil {
+			logger.ErrorF("❌ Failed to call Gemini API: %v", err)
+			return nil, fmt.Errorf("failed to call Gemini API: %w", err)
+		}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			resp.Body.Close()
+			logger.ErrorF("❌ Failed to read response from Gemini API: %v", err)
+			return nil, fmt.Errorf("failed to read response: %w", err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode == 200 {
+			// reset body so the normal path reads it again
+			resp.Body = io.NopCloser(bytes.NewBuffer(body))
+			break
+		}
+
+		if resp.StatusCode == http.StatusNotFound {
+			if attemptModel == fallbackModel {
+				logger.ErrorF("❌ Gemini API 404 with fallback model as well: %s", string(body))
+				return nil, fmt.Errorf("gemini API error (status %d): %s", resp.StatusCode, string(body))
+			}
+			logger.WarnF("Modelo Gemini não encontrado: %s. Tentando fallback: %s", attemptModel, fallbackModel)
+			attemptModel = fallbackModel
+			attemptAPIVersion = "v1"
+			continue
+		}
+
+		logger.ErrorF("❌ Gemini API error (status %d): %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("gemini API error (status %d): %s", resp.StatusCode, string(body))
+	}
 	if err != nil {
 		logger.ErrorF("❌ Failed to call Gemini API: %v", err)
 		return nil, fmt.Errorf("failed to call Gemini API: %w", err)

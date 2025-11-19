@@ -135,32 +135,62 @@ func AnalyzeReceiptWithGemini(imagesBase64 []string, currency string, locale str
 
 	// Pega o modelo do .env ou usa padrão
 	model := os.Getenv("GEMINI_MODEL")
+	// Pega o modelo do .env ou usa padrão (definido como um modelo atual estável em 2025)
 	if model == "" {
-		model = "gemini-1.5-flash"
+		model = "gemini-2.5-flash"
 	}
 
 	// Modelos preview/experimentais usam v1beta, modelos estáveis usam v1
 	apiVersion := "v1"
-	if strings.Contains(model, "preview") || strings.Contains(model, "exp-") || strings.Contains(model, "2.5") {
+	// Detecta apenas flags de preview/experimental — não decide por versões numéricas, pois
+	// nem todo modelo com número (ex: 2.5) é necessariamente uma variante preview.
+	if strings.Contains(model, "preview") || strings.Contains(model, "exp-") {
 		apiVersion = "v1beta"
 	}
 
-	// URL da API do Gemini
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/%s/models/%s:generateContent?key=%s", apiVersion, model, apiKey)
+	// URL builder para a API do Gemini
+	buildURL := func(apiVersion, model string) string {
+		return fmt.Sprintf("https://generativelanguage.googleapis.com/%s/models/%s:generateContent?key=%s", apiVersion, model, apiKey)
+	}
 
 	// Faz a requisição HTTP
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBody))
-	if err != nil {
-		return nil, fmt.Errorf("erro ao chamar API do Gemini: %v", err)
-	}
-	defer resp.Body.Close()
+	attemptModel := model
+	attemptAPIVersion := apiVersion
+	fallbackModel := "gemini-1.5-flash"
+	var resp *http.Response
+	var body []byte
+	for tries := 0; tries < 2; tries++ {
+		url := buildURL(attemptAPIVersion, attemptModel)
+		resp, err = http.Post(url, "application/json", bytes.NewBuffer(reqBody))
+		if err != nil {
+			return nil, fmt.Errorf("erro ao chamar API do Gemini: %v", err)
+		}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("erro ao ler resposta: %v", err)
-	}
+		body, err = io.ReadAll(resp.Body)
+		// Fechar corpo da resposta após leitura
+		resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("erro ao ler resposta: %v", err)
+		}
 
-	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusOK {
+			break
+		}
+
+		// Se modelo não for encontrado, tentar fallback para um modelo estável
+		if resp.StatusCode == http.StatusNotFound {
+			if attemptModel == fallbackModel {
+				// Já tentamos fallback, retornar erro
+				return nil, fmt.Errorf("erro na API do Gemini (status %d): %s", resp.StatusCode, string(body))
+			}
+			logger.WarnF("Modelo Gemini não encontrado ou não suportado: %s (tentando fallback: %s)", attemptModel, fallbackModel)
+			attemptModel = fallbackModel
+			attemptAPIVersion = "v1"
+			// continue para tentar novamente
+			continue
+		}
+
+		// Outros erros: devolve mensagem
 		return nil, fmt.Errorf("erro na API do Gemini (status %d): %s", resp.StatusCode, string(body))
 	}
 

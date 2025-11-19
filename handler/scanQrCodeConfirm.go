@@ -196,7 +196,7 @@ func ScanQRCodeConfirmHandler(ctx *gin.Context) {
 	go func() {
 		model := os.Getenv("GEMINI_MODEL")
 		if model == "" {
-			model = "gemini-1.5-flash"
+			model = "gemini-2.5-flash"
 		}
 
 		err := recordAITokenUsageInternal(
