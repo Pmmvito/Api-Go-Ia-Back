@@ -121,6 +121,25 @@ func main() {
 		swaggerHost = swaggerHost + ":" + port
 	}
 
+	// If swaggerHost contains a trailing :<port> (e.g. domain:8080) and it is not localhost or 127.x,
+	// strip the trailing port so the public host doesn't show a local port in Swagger UI.
+	if !strings.Contains(swaggerHost, "localhost") && !strings.HasPrefix(swaggerHost, "127.") {
+		// Handle simple host:port (not IPv6 bracketed). If the last segment after ':' contains only digits, remove it.
+		if i := strings.LastIndex(swaggerHost, ":"); i != -1 && !strings.HasPrefix(swaggerHost, "[") {
+			candidatePort := swaggerHost[i+1:]
+			allDigits := true
+			for _, r := range candidatePort {
+				if r < '0' || r > '9' {
+					allDigits = false
+					break
+				}
+			}
+			if allDigits {
+				swaggerHost = swaggerHost[:i]
+			}
+		}
+	}
+
 	docs.SwaggerInfo.Host = swaggerHost
 	if scheme == "" {
 		// prefer https for public domains
