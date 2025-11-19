@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"time"
@@ -48,11 +51,44 @@ type ScanQRCodeConfirmResponse struct {
 func ScanQRCodeConfirmHandler(ctx *gin.Context) {
 	var request ScanQRCodeConfirmRequest
 
-	// Bind JSON
-	if err := ctx.ShouldBindJSON(&request); err != nil {
-		logger.ErrorF("error binding json: %v", err.Error())
-		sendError(ctx, http.StatusBadRequest, err.Error())
+	// Allow both root-level payload and wrappers like { "data": { ... } } or { "receipt_data": { ... } }
+	// We'll read the raw body and try to decode flexible formats.
+	rawBody, err := io.ReadAll(ctx.Request.Body)
+	if err != nil {
+		logger.ErrorF("error reading request body: %v", err.Error())
+		sendError(ctx, http.StatusBadRequest, "Invalid request body")
 		return
+	}
+
+	// Reset the request body for potential future use
+	ctx.Request.Body = io.NopCloser(bytes.NewBuffer(rawBody))
+
+	// First try direct unmarshal into the expected structure
+	if err := json.Unmarshal(rawBody, &request); err != nil {
+		// If that fails, try wrappers
+		var wrapper struct {
+			ReceiptData *ScanQRCodeConfirmRequest `json:"receipt_data"`
+			Data        *ScanQRCodeConfirmRequest `json:"data"`
+			Payload     *ScanQRCodeConfirmRequest `json:"payload"`
+		}
+		if err := json.Unmarshal(rawBody, &wrapper); err != nil {
+			logger.ErrorF("error binding json (root or wrapper): %v", err.Error())
+			sendError(ctx, http.StatusBadRequest, "Invalid JSON payload: expected receipt data at root or inside 'receipt_data'/'data'/'payload'")
+			return
+		}
+
+		if wrapper.ReceiptData != nil {
+			request = *wrapper.ReceiptData
+		} else if wrapper.Data != nil {
+			request = *wrapper.Data
+		} else if wrapper.Payload != nil {
+			request = *wrapper.Payload
+		} else {
+			// none found
+			logger.ErrorF("no valid receipt payload found in wrapper")
+			sendError(ctx, http.StatusBadRequest, "Invalid JSON payload: expected receipt data at root or inside 'receipt_data'/'data'/'payload'")
+			return
+		}
 	}
 
 	// Validações básicas
