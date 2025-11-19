@@ -1,8 +1,6 @@
 package router
 
 import (
-	"time"
-
 	docs "github.com/Pmmvito/Golang-Api-Exemple/docs"
 	"github.com/Pmmvito/Golang-Api-Exemple/handler"
 	"github.com/gin-gonic/gin"
@@ -18,20 +16,19 @@ func InitializeRoutes(router *gin.Engine) {
 	basePatch := "/api/v1"
 	docs.SwaggerInfo.BasePath = basePatch
 
-	// 🔒 Rate limit global: 100 requisições por segundo com burst de 200
-	router.Use(RateLimitMiddleware(100, 200))
+	// Rate limit global removido conforme solicitação; não mais aplicamos limitações por IP/global
 
 	// Rotas públicas (sem autenticação)
 	public := router.Group(basePatch)
 	{
 		// 🔒 Rate limits estritos para endpoints sensíveis
-		public.POST("/register", RegisterRateLimitMiddleware(), handler.RegisterHandler)
-		public.POST("/login", LoginRateLimitMiddleware(), handler.LoginHandler)
+	public.POST("/register", handler.RegisterHandler)
+	public.POST("/login", handler.LoginHandler)
 		// 🔑 Refresh Token (renovar access token)
-		public.POST("/auth/refresh", StrictRateLimitMiddleware(10, time.Minute), handler.RefreshTokenHandler)
+	public.POST("/auth/refresh", handler.RefreshTokenHandler)
 		// 🔑 Recuperação de senha
-		public.POST("/auth/forgot-password", ForgotPasswordRateLimitMiddleware(), handler.ForgotPasswordHandler)
-		public.POST("/auth/reset-password", StrictRateLimitMiddleware(5, time.Minute), handler.ResetPasswordHandler)
+	public.POST("/auth/forgot-password", handler.ForgotPasswordHandler)
+	public.POST("/auth/reset-password", handler.ResetPasswordHandler)
 	}
 
 	// Rotas protegidas (requerem autenticação JWT)

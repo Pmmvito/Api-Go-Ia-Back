@@ -10,6 +10,9 @@ import (
 // SecureMiddleware adiciona headers de segurança e força HTTPS em produção
 func SecureMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+	// Log useful headers for debugging HTTPS/proxy forwarding
+	proto := ctx.Request.Header.Get("X-Forwarded-Proto")
+	logger.Debugf("SecurityMiddleware: X-Forwarded-Proto=%s, TLS=%v, URL=%s", proto, ctx.Request.TLS != nil, ctx.Request.URL.String())
 		// 🔒 Forçar HTTPS em produção
 		if os.Getenv("ENV") == "production" {
 			// Verifica se está usando HTTP (não HTTPS)

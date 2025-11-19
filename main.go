@@ -1,10 +1,13 @@
 package main
 
 import (
+	"os"
+	"strings"
 	"time"
 
 	"github.com/Pmmvito/Golang-Api-Exemple/config"
 	"github.com/Pmmvito/Golang-Api-Exemple/router"
+	docs "github.com/Pmmvito/Golang-Api-Exemple/docs"
 	"github.com/joho/godotenv"
 )
 
@@ -90,5 +93,20 @@ func main() {
 	}
 
 	// Inicializa e inicia o roteador da API.
+	// Configure Swagger host and scheme to public HTTPS if provided
+	swaggerHost := os.Getenv("SWAGGER_HOST")
+	if swaggerHost == "" {
+		swaggerHost = os.Getenv("PUBLIC_HOST")
+	}
+	if swaggerHost == "" {
+		swaggerHost = "finansync-api-core.loophole.site"
+	}
+	port := os.Getenv("PORT")
+	if port != "" && port != "80" && port != "443" && !strings.Contains(swaggerHost, ":") {
+		swaggerHost = swaggerHost + ":" + port
+	}
+	docs.SwaggerInfo.Host = swaggerHost
+	docs.SwaggerInfo.Schemes = []string{"https"}
+
 	router.Initialize()
 }

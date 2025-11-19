@@ -11,7 +11,7 @@
 | Vulnerabilidade | Severidade | Status | Arquivos Modificados |
 |----------------|------------|--------|---------------------|
 | Email Enumeration Attack | 🔴 CRÍTICO | ✅ **CORRIGIDO** | `handler/auth.go` |
-| Falta Rate Limiting | 🔴 CRÍTICO | ✅ **CORRIGIDO** | `router/rate_limit.go`, `router/routes.go` |
+| Falta Rate Limiting | 🔴 CRÍTICO | ⚠️ **REMOVIDO (aplicação de controle off por solicitação)** | `router/routes.go` |
 | Sem HTTPS Enforcement | 🟠 ALTO | ✅ **CORRIGIDO** | `router/security.go`, `router/router.go` |
 | Código Reset Sem Limite Tentativas | 🟠 ALTO | ✅ **CORRIGIDO** | `schemas/password_reset.go`, `handler/auth.go` |
 | Soft Delete Bloqueia Email | 🟠 ALTO | ✅ **CORRIGIDO** | `handler/auth.go` |
@@ -63,47 +63,28 @@ curl -X POST http://localhost:8080/api/v1/register \
 
 ---
 
-### **2. ✅ Rate Limiting - IMPLEMENTADO**
+### **2. ⚠️ Rate Limiting - REMOVIDO (por solicitação)**
 
-**Problema:**
-- Atacante podia fazer força bruta ilimitada (login, register, forgot-password)
-- Sem proteção contra DDoS
+**Motivo:**
+- O rate limiting foi removido do código à pedido do mantenedor. Os middlewares e configurações foram excluídos do projeto.
 
-**Solução Implementada:**
-
-**Arquivo Criado:** `router/rate_limit.go`
-
-```go
-// Rate limit global: 100 req/s com burst de 200
-router.Use(RateLimitMiddleware(100, 200))
-
-// Rate limits específicos:
-// - Login: 3 tentativas por minuto
-// - Register: 2 cadastros por minuto
-// - Forgot Password: 3 tentativas por hora
-// - Reset Password: 5 tentativas por minuto
-
-public.POST("/login", LoginRateLimitMiddleware(), handler.LoginHandler)
-public.POST("/register", RegisterRateLimitMiddleware(), handler.RegisterHandler)
-public.POST("/auth/forgot-password", ForgotPasswordRateLimitMiddleware(), handler.ForgotPasswordHandler)
-```
+**Observação de segurança:**
+- Remover rate limiting aumenta o risco de abuso e força bruta (login/registro/forgot-password). Avalie medidas alternativas como WAF, proxy rate limits, ou regras em infra (Cloudflare / Nginx) se necessário.
 
 **Arquivos Modificados:**
-- `router/rate_limit.go` - CRIADO (147 linhas)
-- `router/routes.go` - Aplicado middlewares (linha ~15-20)
-- `go.mod` - Adicionada dependência `golang.org/x/time/rate`
+- `router/routes.go` - Remoção das chamadas aos middlewares de rate limit
+- `router/rate_limit.go` - DELETADO
 
 **Teste:**
 ```bash
-# Tentar fazer 10 logins seguidos:
-for i in {1..10}; do
+# Tente reproduzir chamadas repetidas e validar que não recebemos 429 do app localmente.
+for i in {1..20}; do
   curl -X POST http://localhost:8080/api/v1/login \
     -H "Content-Type: application/json" \
     -d '{"email":"test@example.com","password":"wrong"}'
 done
 
-# Após 3 tentativas, retorna:
-{"status": 429, "message": "Você atingiu o limite de tentativas..."}
+# Note que abuso é possível sem rate limiting interno; considere proteção na camada de infra.
 ```
 
 ---
