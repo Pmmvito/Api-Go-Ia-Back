@@ -6,7 +6,7 @@ import (
 	"math/big"
 )
 
-// GenerateRandomCode gera um código numérico aleatório de N dígitos
+// GenerateRandomCode gera um código numérico aleatório de N dígitos.
 func GenerateRandomCode(length int) (string, error) {
 	const digits = "0123456789"
 	code := make([]byte, length)
