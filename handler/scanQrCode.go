@@ -261,12 +261,15 @@ func categorizeItemsWithAI(items []NFCeItem, userID uint) (*CategorizationResult
 	}
 	logger.InfoF("✅ GEMINI_API_KEY found (length: %d)", len(apiKey))
 
-	// Pega modelo do ambiente ou usa padrão
+	// Enforce gemini-2.5-flash only (ignore other env values)
 	model := os.Getenv("GEMINI_MODEL")
-	if model == "" {
+	if model != "gemini-2.5-flash" {
+		if model != "" {
+			logger.WarnF("GEMINI_MODEL value '%s' is not supported. Overriding to 'gemini-2.5-flash'", model)
+		}
 		model = "gemini-2.5-flash"
 	}
-	logger.InfoF("📦 Using model: %s", model)
+	logger.InfoF("📦 Enforced model: %s", model)
 
 	// Modelos preview/experimentais usam v1beta, modelos estáveis usam v1
 	apiVersion := "v1"
@@ -308,65 +311,35 @@ func categorizeItemsWithAI(items []NFCeItem, userID uint) (*CategorizationResult
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	// Faz request para Gemini com fallback para modelos não encontrados (404)
-	fallbackModel := "gemini-1.5-flash"
+	// Faz request para Gemini — apenas uma tentativa com o modelo 'gemini-2.5-flash'
 	attemptModel := model
 	attemptAPIVersion := apiVersion
 	var resp *http.Response
-	for tries := 0; tries < 2; tries++ {
-		logger.InfoF("🌐 Calling Gemini API (model: %s, apiVersion: %s)...", attemptModel, attemptAPIVersion)
-		url := fmt.Sprintf("https://generativelanguage.googleapis.com/%s/models/%s:generateContent?key=%s", attemptAPIVersion, attemptModel, apiKey)
-		resp, err = http.Post(url, "application/json", bytes.NewBuffer(jsonData))
-		if err != nil {
-			logger.ErrorF("❌ Failed to call Gemini API: %v", err)
-			return nil, fmt.Errorf("failed to call Gemini API: %w", err)
-		}
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			resp.Body.Close()
-			logger.ErrorF("❌ Failed to read response from Gemini API: %v", err)
-			return nil, fmt.Errorf("failed to read response: %w", err)
-		}
-		resp.Body.Close()
-		if resp.StatusCode == 200 {
-			// reset body so the normal path reads it again
-			resp.Body = io.NopCloser(bytes.NewBuffer(body))
-			break
-		}
-
-		if resp.StatusCode == http.StatusNotFound {
-			if attemptModel == fallbackModel {
-				logger.ErrorF("❌ Gemini API 404 with fallback model as well: %s", string(body))
-				return nil, fmt.Errorf("gemini API error (status %d): %s", resp.StatusCode, string(body))
-			}
-			logger.WarnF("Modelo Gemini não encontrado: %s. Tentando fallback: %s", attemptModel, fallbackModel)
-			attemptModel = fallbackModel
-			attemptAPIVersion = "v1"
-			continue
-		}
-
-		logger.ErrorF("❌ Gemini API error (status %d): %s", resp.StatusCode, string(body))
-		return nil, fmt.Errorf("gemini API error (status %d): %s", resp.StatusCode, string(body))
-	}
+	var body []byte
+	logger.InfoF("🌐 Calling Gemini API (model: %s, apiVersion: %s)...", attemptModel, attemptAPIVersion)
+	url := fmt.Sprintf("https://generativelanguage.googleapis.com/%s/models/%s:generateContent?key=%s", attemptAPIVersion, attemptModel, apiKey)
+	resp, err = http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		logger.ErrorF("❌ Failed to call Gemini API: %v", err)
 		return nil, fmt.Errorf("failed to call Gemini API: %w", err)
 	}
-	defer resp.Body.Close()
-
-	logger.InfoF("✅ Gemini API responded with status: %d", resp.StatusCode)
-
-	body, err := io.ReadAll(resp.Body)
+	body, err = io.ReadAll(resp.Body)
 	if err != nil {
-		logger.ErrorF("❌ Failed to read response: %v", err)
+		resp.Body.Close()
+		logger.ErrorF("❌ Failed to read response from Gemini API: %v", err)
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
-
+	resp.Body.Close()
 	if resp.StatusCode != 200 {
+		// If 404 - model not found, show clearer error and do not fallback.
+		if resp.StatusCode == http.StatusNotFound {
+			logger.ErrorF("❌ Gemini API 404: model not found; only 'gemini-2.5-flash' is supported: %s", string(body))
+			return nil, fmt.Errorf("gemini API error (status %d): model not found; only 'gemini-2.5-flash' is supported. Detail: %s", resp.StatusCode, string(body))
+		}
 		logger.ErrorF("❌ Gemini API error (status %d): %s", resp.StatusCode, string(body))
 		return nil, fmt.Errorf("gemini API error (status %d): %s", resp.StatusCode, string(body))
 	}
-
+	logger.InfoF("✅ Gemini API responded with status: %d", resp.StatusCode)
 	logger.InfoF("📄 Response body length: %d bytes", len(body))
 
 	// Parse response

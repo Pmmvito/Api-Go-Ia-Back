@@ -342,7 +342,10 @@ func ScanQRCodeConfirmHandler(ctx *gin.Context) {
 	// Registra uso de tokens da IA automaticamente (em background)
 	go func() {
 		model := os.Getenv("GEMINI_MODEL")
-		if model == "" {
+		if model != "gemini-2.5-flash" {
+			if model != "" {
+				logger.WarnF("GEMINI_MODEL value '%s' is not supported here. Overriding to 'gemini-2.5-flash'", model)
+			}
 			model = "gemini-2.5-flash"
 		}
 
