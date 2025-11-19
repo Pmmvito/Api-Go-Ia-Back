@@ -35,7 +35,7 @@ func SecureMiddleware() gin.HandlerFunc {
 				// Para métodos que não são seguros, retorne 426 Upgrade Required
 				logger.WarnF("Rejeitando requisição insegura (HTTPS requerido): %s %s", ctx.Request.Method, ctx.Request.URL)
 				ctx.JSON(http.StatusUpgradeRequired, gin.H{
-					"message": "HTTPS is required for this endpoint",
+					"message":   "HTTPS is required for this endpoint",
 					"errorCode": http.StatusUpgradeRequired,
 				})
 				ctx.Abort()

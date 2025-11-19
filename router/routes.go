@@ -2,6 +2,7 @@ package router
 
 import (
 	"os"
+
 	docs "github.com/Pmmvito/Golang-Api-Exemple/docs"
 	"github.com/Pmmvito/Golang-Api-Exemple/handler"
 	"github.com/gin-gonic/gin"
