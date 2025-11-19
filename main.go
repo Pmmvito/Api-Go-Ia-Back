@@ -93,7 +93,10 @@ func main() {
 	}
 
 	// Inicializa e inicia o roteador da API.
-	// Configure Swagger host and scheme to public HTTPS if provided
+	// Configure Swagger host and scheme to public HTTPS if provided. Keep it simple:
+	// - If SWAGGER_HOST or PUBLIC_HOST provided, use it AS-IS (no appended local PORT).
+	// - If it contains scheme (https://), extract scheme and host.
+	// - Otherwise fallback to default domain without port.
 	swaggerHost := os.Getenv("SWAGGER_HOST")
 	if swaggerHost == "" {
 		swaggerHost = os.Getenv("PUBLIC_HOST")
@@ -101,12 +104,30 @@ func main() {
 	if swaggerHost == "" {
 		swaggerHost = "finansync-api-core.loophole.site"
 	}
+
+	// Detect scheme if provided (e.g. https://host)
+	scheme := ""
+	if strings.HasPrefix(swaggerHost, "https://") {
+		scheme = "https"
+		swaggerHost = strings.TrimPrefix(swaggerHost, "https://")
+	} else if strings.HasPrefix(swaggerHost, "http://") {
+		scheme = "http"
+		swaggerHost = strings.TrimPrefix(swaggerHost, "http://")
+	}
+
+	// Only append local port if swaggerHost is localhost/127.x (i.e. dev hosting)
 	port := os.Getenv("PORT")
-	if port != "" && port != "80" && port != "443" && !strings.Contains(swaggerHost, ":") {
+	if (strings.Contains(swaggerHost, "localhost") || strings.HasPrefix(swaggerHost, "127.")) && port != "" && port != "80" && port != "443" && !strings.Contains(swaggerHost, ":") {
 		swaggerHost = swaggerHost + ":" + port
 	}
+
 	docs.SwaggerInfo.Host = swaggerHost
-	docs.SwaggerInfo.Schemes = []string{"https"}
+	if scheme == "" {
+		// prefer https for public domains
+		docs.SwaggerInfo.Schemes = []string{"https"}
+	} else {
+		docs.SwaggerInfo.Schemes = []string{scheme}
+	}
 
 	router.Initialize()
 }
