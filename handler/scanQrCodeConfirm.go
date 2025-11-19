@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"strings"
 
 	"github.com/Pmmvito/Golang-Api-Exemple/config"
 	"github.com/Pmmvito/Golang-Api-Exemple/schemas"
@@ -34,6 +35,54 @@ type ScanQRCodeConfirmRequest struct {
 // ScanQRCodeConfirmResponse define a estrutura da resposta após a confirmação e salvamento do recibo.
 type ScanQRCodeConfirmResponse struct {
 	Message string `json:"message"`
+}
+
+// helper: convert snake_case keys to camelCase recursively
+func snakeToCamel(s string) string {
+	if !strings.Contains(s, "_") {
+		return s
+	}
+	parts := strings.Split(s, "_")
+	out := parts[0]
+	for _, p := range parts[1:] {
+		if p == "" {
+			continue
+		}
+		out += strings.ToUpper(p[:1]) + strings.ToLower(p[1:])
+	}
+	return out
+}
+
+func normalizeKeys(v interface{}) interface{} {
+	switch x := v.(type) {
+	case map[string]interface{}:
+		m := make(map[string]interface{}, len(x))
+		for k, val := range x {
+			nk := snakeToCamel(k)
+			m[nk] = normalizeKeys(val)
+		}
+		return m
+	case []interface{}:
+		arr := make([]interface{}, len(x))
+		for i, el := range x {
+			arr[i] = normalizeKeys(el)
+		}
+		return arr
+	default:
+		return v
+	}
+}
+
+// normalizeJSONKeysToCamel accepts raw JSON and returns bytes where snake_case keys
+// have been converted to camelCase. This allows flexible payloads such as 'qr_code_data'
+// and 'qr_code_url' to be mapped into Go structs expecting camelCase fields (e.g. 'qrCodeUrl').
+func normalizeJSONKeysToCamel(raw []byte) ([]byte, error) {
+	var v interface{}
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return nil, err
+	}
+	normalized := normalizeKeys(v)
+	return json.Marshal(normalized)
 }
 
 // ScanQRCodeConfirmHandler confirma, categoriza com IA e salva no banco (Etapa 2/2)
@@ -65,29 +114,91 @@ func ScanQRCodeConfirmHandler(ctx *gin.Context) {
 
 	// First try direct unmarshal into the expected structure
 	if err := json.Unmarshal(rawBody, &request); err != nil {
-		// If that fails, try wrappers
-		var wrapper struct {
-			ReceiptData *ScanQRCodeConfirmRequest `json:"receipt_data"`
-			Data        *ScanQRCodeConfirmRequest `json:"data"`
-			Payload     *ScanQRCodeConfirmRequest `json:"payload"`
-		}
-		if err := json.Unmarshal(rawBody, &wrapper); err != nil {
-			logger.ErrorF("error binding json (root or wrapper): %v", err.Error())
-			sendError(ctx, http.StatusBadRequest, "Invalid JSON payload: expected receipt data at root or inside 'receipt_data'/'data'/'payload'")
-			return
-		}
+		// If that fails, try a normalization pass to accept snake_case keys such as 'qr_code_url' / 'qr_code_data'
+		if normalized, nerr := normalizeJSONKeysToCamel(rawBody); nerr == nil {
+			if err := json.Unmarshal(normalized, &request); err == nil {
+				// decoded successfully after normalization
+				// reset the ctx.Request.Body so it is available later as the normalized bytes
+				ctx.Request.Body = io.NopCloser(bytes.NewBuffer(normalized))
+			} else {
+				// If still failing, try wrappers on both original and normalized bodies
+				var wrapper struct {
+					ReceiptData     *ScanQRCodeConfirmRequest `json:"receipt_data"`
+					Data            *ScanQRCodeConfirmRequest `json:"data"`
+					Payload         *ScanQRCodeConfirmRequest `json:"payload"`
+					QrCodeData      *ScanQRCodeConfirmRequest `json:"qr_code_data"`
+					QrCodeDataCamel *ScanQRCodeConfirmRequest `json:"qrCodeData"`
+				}
 
-		if wrapper.ReceiptData != nil {
-			request = *wrapper.ReceiptData
-		} else if wrapper.Data != nil {
-			request = *wrapper.Data
-		} else if wrapper.Payload != nil {
-			request = *wrapper.Payload
+				// try normalized first
+				if err := json.Unmarshal(normalized, &wrapper); err == nil {
+					if wrapper.ReceiptData != nil {
+						request = *wrapper.ReceiptData
+					} else if wrapper.Data != nil {
+						request = *wrapper.Data
+					} else if wrapper.Payload != nil {
+						request = *wrapper.Payload
+					} else if wrapper.QrCodeData != nil {
+						request = *wrapper.QrCodeData
+					} else if wrapper.QrCodeDataCamel != nil {
+						request = *wrapper.QrCodeDataCamel
+					} else {
+						logger.ErrorF("no valid receipt payload found in wrapper (normalized)")
+						sendError(ctx, http.StatusBadRequest, "Invalid JSON payload: expected receipt data at root or inside 'receipt_data'/'data'/'payload'/'qr_code_data'")
+						return
+					}
+				} else {
+					// try original body
+					if err := json.Unmarshal(rawBody, &wrapper); err != nil {
+						logger.ErrorF("error binding json (root or wrapper): %v", err.Error())
+						sendError(ctx, http.StatusBadRequest, "Invalid JSON payload: expected receipt data at root or inside 'receipt_data'/'data'/'payload'/'qr_code_data'")
+						return
+					}
+					if wrapper.ReceiptData != nil {
+						request = *wrapper.ReceiptData
+					} else if wrapper.Data != nil {
+						request = *wrapper.Data
+					} else if wrapper.Payload != nil {
+						request = *wrapper.Payload
+					} else if wrapper.QrCodeData != nil {
+						request = *wrapper.QrCodeData
+					} else if wrapper.QrCodeDataCamel != nil {
+						request = *wrapper.QrCodeDataCamel
+					} else {
+						logger.ErrorF("no valid receipt payload found in wrapper")
+						sendError(ctx, http.StatusBadRequest, "Invalid JSON payload: expected receipt data at root or inside 'receipt_data'/'data'/'payload'/'qr_code_data'")
+						return
+					}
+				}
+			}
 		} else {
-			// none found
-			logger.ErrorF("no valid receipt payload found in wrapper")
-			sendError(ctx, http.StatusBadRequest, "Invalid JSON payload: expected receipt data at root or inside 'receipt_data'/'data'/'payload'")
-			return
+			// normalization failed - try wrappers only on original
+			var wrapper struct {
+				ReceiptData *ScanQRCodeConfirmRequest `json:"receipt_data"`
+				Data        *ScanQRCodeConfirmRequest `json:"data"`
+				Payload     *ScanQRCodeConfirmRequest `json:"payload"`
+				QrCodeData  *ScanQRCodeConfirmRequest `json:"qr_code_data"`
+			}
+			if err := json.Unmarshal(rawBody, &wrapper); err != nil {
+				logger.ErrorF("error binding json (root or wrapper): %v", err.Error())
+				sendError(ctx, http.StatusBadRequest, "Invalid JSON payload: expected receipt data at root or inside 'receipt_data'/'data'/'payload'/'qr_code_data'")
+				return
+			}
+
+			if wrapper.ReceiptData != nil {
+				request = *wrapper.ReceiptData
+			} else if wrapper.Data != nil {
+				request = *wrapper.Data
+			} else if wrapper.Payload != nil {
+				request = *wrapper.Payload
+			} else if wrapper.QrCodeData != nil {
+				request = *wrapper.QrCodeData
+			} else {
+				// none found
+				logger.ErrorF("no valid receipt payload found in wrapper")
+				sendError(ctx, http.StatusBadRequest, "Invalid JSON payload: expected receipt data at root or inside 'receipt_data'/'data'/'payload'/'qr_code_data'")
+				return
+			}
 		}
 	}
 
