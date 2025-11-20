@@ -3222,6 +3222,9 @@ const docTemplate = `{
                 "date": {
                     "type": "string"
                 },
+                "discount": {
+                    "type": "number"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -3233,6 +3236,9 @@ const docTemplate = `{
                 },
                 "storeName": {
                     "type": "string"
+                },
+                "subtotal": {
+                    "type": "number"
                 },
                 "total": {
                     "type": "number"

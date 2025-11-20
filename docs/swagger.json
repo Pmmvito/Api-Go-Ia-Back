@@ -3216,6 +3216,9 @@
                 "date": {
                     "type": "string"
                 },
+                "discount": {
+                    "type": "number"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -3227,6 +3230,9 @@
                 },
                 "storeName": {
                     "type": "string"
+                },
+                "subtotal": {
+                    "type": "number"
                 },
                 "total": {
                     "type": "number"

@@ -84,6 +84,8 @@ type ReceiptSummary struct {
 	StoreName string               `json:"storeName"`
 	Date      string               `json:"date"`
 	Items     []ReceiptItemSummary `json:"items"`
+	Subtotal  float64              `json:"subtotal"`
+	Discount  float64              `json:"discount"`
 	Total     float64              `json:"total"`
 	Currency  string               `json:"currency"`
 }
@@ -144,8 +146,8 @@ func (r *Receipt) ToSummary() ReceiptSummary {
 			Quantity:   item.Quantity,
 			UnitPrice:  item.UnitPrice,
 			Total:      item.Total,
-			Subtotal:    item.Receipt.Subtotal,
-			Discount:    item.Receipt.Discount,
+			Subtotal:   r.Subtotal, // usar o subtotal do receipt
+			Discount:   r.Discount, // usar o discount do receipt
 		}
 
 		// Adiciona categoria se existir (APENAS ID e Nome)
@@ -173,6 +175,8 @@ func (r *Receipt) ToSummary() ReceiptSummary {
 		StoreName: r.StoreName,
 		Date:      r.Date,
 		Items:     items,
+		Subtotal:  r.Subtotal,
+		Discount:  r.Discount,
 		Total:     r.Total,
 		Currency:  r.Currency,
 	}
