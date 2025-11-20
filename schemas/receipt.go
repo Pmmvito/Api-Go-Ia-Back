@@ -57,6 +57,8 @@ type ReceiptItemSummary struct {
 	Quantity   float64         `json:"quantity"`
 	UnitPrice  float64         `json:"unitPrice"`
 	Total      float64         `json:"total"`
+	Subtotal   float64         `json:"subtotal"`
+	Discount   float64         `json:"discount"`
 }
 
 // ProductSimple fornece uma representação leve ede um produto, com apenas nome e unidade.
@@ -142,6 +144,8 @@ func (r *Receipt) ToSummary() ReceiptSummary {
 			Quantity:   item.Quantity,
 			UnitPrice:  item.UnitPrice,
 			Total:      item.Total,
+			Subtotal:    item.Receipt.Subtotal,
+			Discount:    item.Receipt.Discount,
 		}
 
 		// Adiciona categoria se existir (APENAS ID e Nome)

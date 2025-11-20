@@ -524,6 +524,8 @@ definitions:
         description: Apenas ID e Nome
       categoryId:
         type: integer
+      discount:
+        type: number
       id:
         type: integer
       product:
@@ -533,6 +535,8 @@ definitions:
       productId:
         type: integer
       quantity:
+        type: number
+      subtotal:
         type: number
       total:
         type: number

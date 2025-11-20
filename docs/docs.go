@@ -3182,6 +3182,9 @@ const docTemplate = `{
                 "categoryId": {
                     "type": "integer"
                 },
+                "discount": {
+                    "type": "number"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -3197,6 +3200,9 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "quantity": {
+                    "type": "number"
+                },
+                "subtotal": {
                     "type": "number"
                 },
                 "total": {

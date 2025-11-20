@@ -3176,6 +3176,9 @@
                 "categoryId": {
                     "type": "integer"
                 },
+                "discount": {
+                    "type": "number"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -3191,6 +3194,9 @@
                     "type": "integer"
                 },
                 "quantity": {
+                    "type": "number"
+                },
+                "subtotal": {
                     "type": "number"
                 },
                 "total": {
