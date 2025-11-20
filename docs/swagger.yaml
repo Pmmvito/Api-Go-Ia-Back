@@ -48,25 +48,25 @@ definitions:
   handler.PreviewItem:
     properties:
       deleted:
-        description: Se true, o item será ignorado ao confirmar
+        description: Se true, item será ignorado (usado no confirm)
         type: boolean
       description:
         description: Nome do produto
         type: string
       quantity:
-        description: Quantidade do item
+        description: Quantidade
         type: number
       tempId:
-        description: ID temporário para facilitar a edição no frontend
+        description: ID temporário para edição
         type: integer
       total:
         description: Total do item
         type: number
       unit:
-        description: Unidade de medida (kg, un, ml, etc)
+        description: Unidade (kg, un, ml, etc)
         type: string
       unitPrice:
-        description: Preço por unidade
+        description: Preço unitário
         type: number
     type: object
   handler.PreviewReceiptData:
@@ -81,18 +81,18 @@ definitions:
         description: Desconto
         type: number
       items:
-        description: Itens extraídos do recibo
+        description: Items extraídos
         items:
           $ref: '#/definitions/handler.PreviewItem'
         type: array
       itemsCount:
-        description: Total de itens
+        description: Total de items
         type: integer
       number:
         description: Número da nota
         type: string
       qrCodeUrl:
-        description: URL original do QR code para confirmação
+        description: URL original (para confirmação)
         type: string
       storeName:
         description: Nome do estabelecimento
@@ -134,18 +134,18 @@ definitions:
         description: Desconto
         type: number
       items:
-        description: Itens (editados) - utiliza a estrutura PreviewItem
+        description: Items (editados) - USA PreviewItem
         items:
           $ref: '#/definitions/handler.PreviewItem'
         type: array
       itemsCount:
-        description: Total de itens
+        description: Total de items
         type: integer
       number:
         description: Número da nota
         type: string
       qrCodeUrl:
-        description: URL original do QR code
+        description: URL original
         type: string
       storeName:
         description: Nome do estabelecimento
@@ -196,39 +196,6 @@ definitions:
         example: Alimentação Fora
         type: string
     type: object
-  handler.UpdateItemRequest:
-    properties:
-      categoryId:
-        type: integer
-      productId:
-        type: integer
-      quantity:
-        type: number
-      total:
-        type: number
-      unitPrice:
-        type: number
-    type: object
-  handler.UpdateProductRequest:
-    properties:
-      name:
-        type: string
-      unity:
-        type: string
-    type: object
-  handler.UpdateReceiptRequest:
-    properties:
-      date:
-        type: string
-      discount:
-        type: number
-      storeName:
-        type: string
-      subtotal:
-        type: number
-      total:
-        type: number
-    type: object
   schemas.CategorySimple:
     properties:
       id:
@@ -267,7 +234,7 @@ definitions:
       id:
         type: integer
       itemCount:
-        description: Número de itens
+        description: Quantidade de itens
         type: integer
       storeName:
         type: string
@@ -442,46 +409,6 @@ paths:
       summary: List all categories
       tags:
       - "\U0001F4C1 Categories"
-  /categories/graph:
-    get:
-      consumes:
-      - application/json
-      description: Get aggregated data for each category, including item count and
-        total value. Filters by date range, defaulting to the current month.
-      parameters:
-      - description: Start date for filtering (YYYY-MM-DD)
-        in: query
-        name: start_date
-        type: string
-      - description: End date for filtering (YYYY-MM-DD)
-        in: query
-        name: end_date
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Category graph data retrieved successfully
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid date format
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "401":
-          description: Unauthorized - Invalid or missing token
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Get category graph data
-      tags:
-      - "\U0001F4C1 Categories"
   /category:
     post:
       consumes:
@@ -629,42 +556,6 @@ paths:
       tags:
       - "\U0001F4C1 Categories"
   /item/{id}:
-    delete:
-      consumes:
-      - application/json
-      description: Delete an existing receipt item by its ID.
-      parameters:
-      - description: Item ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Delete an item
-      tags:
-      - items
     get:
       description: Busca um item pelo ID
       parameters:
@@ -689,46 +580,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Buscar item por ID
-      tags:
-      - items
-    patch:
-      consumes:
-      - application/json
-      description: Update an existing receipt item. All fields are optional.
-      parameters:
-      - description: Item ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Item data to update
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handler.UpdateItemRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/schemas.ReceiptItemResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Update an item
       tags:
       - items
   /items:
@@ -871,42 +722,6 @@ paths:
       tags:
       - products
   /products/{id}:
-    delete:
-      consumes:
-      - application/json
-      description: Delete an existing product by its ID.
-      parameters:
-      - description: Product ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Delete a product
-      tags:
-      - products
     get:
       description: Busca produto pelo ID
       parameters:
@@ -931,46 +746,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Buscar produto por ID
-      tags:
-      - products
-    patch:
-      consumes:
-      - application/json
-      description: Update an existing product. All fields are optional.
-      parameters:
-      - description: Product ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Product data to update
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handler.UpdateProductRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/schemas.ProductResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Update a product
       tags:
       - products
   /products/date/{date}:
@@ -1026,42 +801,6 @@ paths:
       tags:
       - products
   /receipt/{id}:
-    delete:
-      consumes:
-      - application/json
-      description: Delete an existing receipt by its ID.
-      parameters:
-      - description: Receipt ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Delete a receipt
-      tags:
-      - notasfiscais
     get:
       description: Busca um recibo pelo ID do usuário autenticado
       parameters:
@@ -1086,46 +825,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Buscar recibo por ID
-      tags:
-      - notasfiscais
-    patch:
-      consumes:
-      - application/json
-      description: Update an existing receipt. All fields are optional.
-      parameters:
-      - description: Receipt ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Receipt data to update
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handler.UpdateReceiptRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/schemas.ReceiptResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Update a receipt
       tags:
       - notasfiscais
   /receipts:

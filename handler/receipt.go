@@ -55,7 +55,7 @@ func GetReceiptsBasicHandler(ctx *gin.Context) {
 	userID, _ := ctx.Get("user_id")
 	var receipts []schemas.Receipt
 	// Query otimizada - seleciona apenas os campos necessários, sem preloading de relacionamentos complexos.
-	db.Select("id, store_name, date, total, currency, user_id").
+	db.Select("id, store_name, date, subtotal, discount, total, currency, user_id").
 		Where("user_id = ?", userID).
 		Order("date DESC").
 		Find(&receipts)
@@ -71,6 +71,8 @@ func GetReceiptsBasicHandler(ctx *gin.Context) {
 			StoreName: receipt.StoreName,
 			Date:      receipt.Date,
 			ItemCount: int(count),
+			Subtotal:  receipt.Subtotal,
+			Discount:  receipt.Discount,
 			Total:     receipt.Total,
 			Currency:  receipt.Currency,
 		}
@@ -194,7 +196,7 @@ func GetReceiptsBasicByPeriodHandler(ctx *gin.Context) {
 
 	var receipts []schemas.Receipt
 	// Query otimizada
-	db.Select("id, store_name, date, total, currency, user_id").
+	db.Select("id, store_name, date, subtotal, discount, total, currency, user_id").
 		Where("user_id = ? AND date >= ? AND date <= ?", userID, startDate, endDate).
 		Order("date DESC").Find(&receipts)
 
@@ -209,6 +211,8 @@ func GetReceiptsBasicByPeriodHandler(ctx *gin.Context) {
 			StoreName: receipt.StoreName,
 			Date:      receipt.Date,
 			ItemCount: int(count),
+			Subtotal:  receipt.Subtotal,
+			Discount:  receipt.Discount,
 			Total:     receipt.Total,
 			Currency:  receipt.Currency,
 		}
@@ -231,7 +235,7 @@ func GetReceiptsBasicByDateHandler(ctx *gin.Context) {
 	date := ctx.Param("date")
 	var receipts []schemas.Receipt
 	// Query otimizada
-	db.Select("id, store_name, date, total, currency, user_id").
+	db.Select("id, store_name, date, subtotal, discount, total, currency, user_id").
 		Where("user_id = ? AND date = ?", userID, date).
 		Order("date DESC").Find(&receipts)
 
@@ -246,6 +250,8 @@ func GetReceiptsBasicByDateHandler(ctx *gin.Context) {
 			StoreName: receipt.StoreName,
 			Date:      receipt.Date,
 			ItemCount: int(count),
+			Subtotal:  receipt.Subtotal,
+			Discount:  receipt.Discount,
 			Total:     receipt.Total,
 			Currency:  receipt.Currency,
 		}
