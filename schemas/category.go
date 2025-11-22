@@ -45,7 +45,7 @@ type CategorySummary struct {
 	ItemCount   int    `json:"itemCount"` // Sempre incluído em summary
 }
 
-// ToResponse converte um modelo Category para o formato CategoryResponse.
+// ToResponse converte um modelo Category para o formato CategoryResponse..
 // Isso é útil para garantir respostas de API consistentes.
 func (c *Category) ToResponse() CategoryResponse {
 	return CategoryResponse{
